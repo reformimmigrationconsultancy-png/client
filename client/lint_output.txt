@@ -1,0 +1,117 @@
+
+> client@0.0.0 lint
+> eslint .
+
+
+C:\react project\lead\client\src\components\ComposeModal.jsx
+  7:14  error  'setTo' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\react project\lead\client\src\context\AuthContext.jsx
+   6:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             react-refresh/only-export-components
+  28:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  26 |         });
+  27 |     } else {
+> 28 |       setLoading(false);
+     |       ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  29 |     }
+  30 |   }, []);
+  31 |  react-hooks/set-state-in-effect
+
+C:\react project\lead\client\src\pages\Calendar.jsx
+   4:37  error  'isPast' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+  32:14  error  'err' is defined but never used                                                no-unused-vars
+
+C:\react project\lead\client\src\pages\ClientProfile.jsx
+   35:6   warning  React Hook useEffect has a missing dependency: 'fetchClient'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   42:14  error    'err' is defined but never used                                                                                 no-unused-vars
+   58:13  error    'err' is defined but never used                                                                                 no-unused-vars
+   70:14  error    'err' is defined but never used                                                                                 no-unused-vars
+   89:14  error    'err' is defined but never used                                                                                 no-unused-vars
+  102:14  error    'err' is defined but never used                                                                                 no-unused-vars
+
+C:\react project\lead\client\src\pages\Dashboard.jsx
+  69:26  error  'idx' is defined but never used  no-unused-vars
+
+C:\react project\lead\client\src\pages\Emails.jsx
+   4:10  error  'format' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+  22:14  error  'err' is defined but never used                                                no-unused-vars
+
+C:\react project\lead\client\src\pages\Inbox.jsx
+   76:10  error    Error: Cannot access variable before it is declared
+
+`fetchMessages` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+  74 |          }
+  75 |       } else if (res.data.conversations.length > 0) {
+> 76 |          fetchMessages(res.data.conversations[0]);
+     |          ^^^^^^^^^^^^^ `fetchMessages` accessed before it is declared
+  77 |       }
+  78 |     } catch (err) {
+  79 |       console.error('Fetch Conversations Error:', err);
+
+  81 |   }, [activeChannel, searchQuery, filterUnread, activeConv]);
+  82 |
+> 83 |   const fetchMessages = async (conv) => {
+     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 84 |     if (!conv) return;
+     | ^^^^^^^^^^^^^^^^^^^^^^
+> 85 |     setActiveConv(conv);
+     …
+     | ^^^^^^^^^^^^^^^^^^^^^^
+> 94 |     }
+     | ^^^^^^^^^^^^^^^^^^^^^^
+> 95 |   };
+     | ^^^^^ `fetchMessages` is declared here
+  96 |
+  97 |   useEffect(() => {
+  98 |     fetchConversations();                                                                      react-hooks/immutability
+   81:6   warning  React Hook useCallback has a missing dependency: 'fetchMessages'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react-hooks/exhaustive-deps
+   89:7   error    Error: Cannot access variable before it is declared
+
+`scrollToBottom` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+  87 |       const res = await api.get(`/conversations/${conv._id}/messages`);
+  88 |       setMessages(res.data.messages);
+> 89 |       scrollToBottom();
+     |       ^^^^^^^^^^^^^^ `scrollToBottom` accessed before it is declared
+  90 |       // Use the stable function, pass true to keep active
+  91 |       fetchConversations(true);
+  92 |     } catch (err) {
+
+  137 |   }, [activeConv, socket]);
+  138 |
+> 139 |   const scrollToBottom = () => {
+      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 140 |     setTimeout(() => {
+      | ^^^^^^^^^^^^^^^^^^^^^^
+> 141 |       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      | ^^^^^^^^^^^^^^^^^^^^^^
+> 142 |     }, 100);
+      | ^^^^^^^^^^^^^^^^^^^^^^
+> 143 |   };
+      | ^^^^^ `scrollToBottom` is declared here
+  144 |
+  145 |   const handleSend = async (e) => {
+  146 |     e.preventDefault();  react-hooks/immutability
+   99:6   warning  React Hook useEffect has a missing dependency: 'fetchConversations'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react-hooks/exhaustive-deps
+  158:14  error    'err' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         no-unused-vars
+  175:14  error    'err' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         no-unused-vars
+  185:15  error    'err' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         no-unused-vars
+  198:15  error    'err' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         no-unused-vars
+  411:31  error    'isSystem' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                no-unused-vars
+
+C:\react project\lead\client\src\pages\Leads.jsx
+  50:14  error  'error' is defined but never used                                                            no-unused-vars
+  65:14  error  'err' is defined but never used                                                              no-unused-vars
+  72:34  error  'draggableId' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+  93:16  error  'err' is defined but never used                                                              no-unused-vars
+
+✖ 27 problems (24 errors, 3 warnings)
+
