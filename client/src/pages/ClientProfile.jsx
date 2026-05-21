@@ -116,40 +116,40 @@ export default function ClientProfile() {
   return (
     <div className="flex h-full flex-col bg-slate-50 overflow-hidden">
       {/* Header Profile Info */}
-      <div className="bg-white border-b border-slate-200 px-8 py-6 shadow-sm flex-shrink-0 animate-in fade-in slide-in-from-top duration-300">
-         <div className="flex justify-between items-start">
-            <div className="flex gap-6 items-center">
-               <div className="h-24 w-24 bg-gradient-to-tr from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center text-white text-4xl font-extrabold shadow-lg transform -rotate-2">
+      <div className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 md:py-6 shadow-sm flex-shrink-0 animate-in fade-in slide-in-from-top duration-300">
+         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-start gap-4 md:gap-6">
+            <div className="flex flex-col xs:flex-row gap-4 xs:gap-6 items-start xs:items-center">
+               <div className="h-16 w-16 sm:h-24 sm:w-24 bg-gradient-to-tr from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center text-white text-2xl sm:text-4xl font-extrabold shadow-lg transform -rotate-2 shrink-0">
                   {client.fullName.charAt(0)}
                </div>
-               <div>
-                  <h1 className="text-3xl font-black text-slate-900 tracking-tight">{client.fullName}</h1>
-                  <div className="flex flex-wrap gap-4 mt-3 text-sm font-medium text-slate-600">
-                     <span className="flex items-center gap-1.5"><EnvelopeIcon className="w-4 h-4 text-slate-400"/> {client.email || 'No email established'}</span>
-                     <span className="flex items-center gap-1.5"><PhoneIcon className="w-4 h-4 text-slate-400"/> {client.phone || 'No phone established'}</span>
-                     <span className="flex items-center gap-1.5 capitalize px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold border border-blue-100 uppercase tracking-tighter">
+               <div className="min-w-0">
+                  <h1 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight truncate">{client.fullName}</h1>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2 sm:mt-3 text-xs sm:text-sm font-medium text-slate-600">
+                     <span className="flex items-center gap-1.5 min-w-0 truncate"><EnvelopeIcon className="w-4 h-4 text-slate-400 shrink-0"/> <span className="truncate">{client.email || 'No email established'}</span></span>
+                     <span className="flex items-center gap-1.5 shrink-0"><PhoneIcon className="w-4 h-4 text-slate-400 shrink-0"/> {client.phone || 'No phone established'}</span>
+                     <span className="flex items-center gap-1.5 capitalize px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold border border-blue-100 uppercase tracking-tighter shrink-0">
                         {client.stage.replace('_', ' ')}
                      </span>
                   </div>
                </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 w-full sm:w-auto">
                <button 
                   onClick={() => setIsEditModalOpen(true)}
-                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-2"
+                  className="flex-1 sm:flex-none justify-center px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-2"
                >
                   <PencilSquareIcon className="w-4 h-4" /> Edit Profile
                </button>
                <button 
-                  onClick={() => (window.location.href = '/inbox')}
-                  className="px-4 py-2.5 bg-slate-900 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white hover:bg-slate-800 transition-all flex items-center gap-2"
+                  onClick={() => navigate('/inbox')}
+                  className="flex-1 sm:flex-none justify-center px-4 py-2.5 bg-slate-900 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white hover:bg-slate-800 transition-all flex items-center gap-2"
                >
                   <ChatBubbleLeftRightIcon className="w-4 h-4" /> Message
                </button>
             </div>
          </div>
          
-         <div className="flex gap-8 mt-10 border-b border-slate-100">
+         <div className="flex gap-6 sm:gap-8 mt-6 sm:mt-10 border-b border-slate-100">
              {['notes', 'calls', 'documents'].map(tab => (
                  <button 
                     key={tab}
@@ -163,9 +163,61 @@ export default function ClientProfile() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-8 max-w-6xl w-full mx-auto pb-20">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 max-w-6xl w-full mx-auto pb-20">
          {activeTab === 'notes' && (
             <div className="space-y-6 animate-in fade-in duration-300">
+                {/* Meta Ads Lead Capture Card */}
+                {client.source === 'facebook' && client.metaData && (client.metaData.campaignName || client.metaData.formName || (client.metaData.customFields && Object.keys(client.metaData.customFields).length > 0)) && (
+                   <div className="bg-gradient-to-br from-blue-50/80 to-indigo-50/40 rounded-2xl border border-blue-100/70 p-6 shadow-sm animate-in zoom-in duration-300 relative overflow-hidden">
+                      {/* Premium decorative accent */}
+                      <div className="absolute right-0 top-0 w-24 h-24 bg-gradient-to-bl from-blue-500/10 to-indigo-500/0 rounded-bl-full pointer-events-none"></div>
+                      
+                      <div className="flex items-center gap-3 border-b border-blue-100/50 pb-4 mb-4">
+                         <div className="p-2 rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/20">
+                            <ChatBubbleLeftRightIcon className="w-5 h-5" />
+                         </div>
+                         <div>
+                            <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider">Meta Ads Lead Capture</h3>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Sourced from Facebook Lead Ads</p>
+                         </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div className="space-y-3">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Campaign context</h4>
+                            <div className="space-y-2.5">
+                               <div className="flex justify-between items-center text-sm font-medium">
+                                  <span className="text-slate-500 text-xs">Campaign:</span>
+                                  <span className="font-bold text-slate-800 bg-white px-2.5 py-1 rounded-lg border border-slate-100 shadow-sm text-xs truncate max-w-[200px]">{client.metaData.campaignName || 'N/A'}</span>
+                               </div>
+                               <div className="flex justify-between items-center text-sm font-medium">
+                                  <span className="text-slate-500 text-xs">Ad Name:</span>
+                                  <span className="font-bold text-slate-800 bg-white px-2.5 py-1 rounded-lg border border-slate-100 shadow-sm text-xs truncate max-w-[200px]">{client.metaData.adName || 'N/A'}</span>
+                               </div>
+                               <div className="flex justify-between items-center text-sm font-medium">
+                                  <span className="text-slate-500 text-xs">Form Name:</span>
+                                  <span className="font-bold text-slate-800 bg-white px-2.5 py-1 rounded-lg border border-slate-100 shadow-sm text-xs truncate max-w-[200px]">{client.metaData.formName || 'N/A'}</span>
+                               </div>
+                            </div>
+                         </div>
+                         
+                         {client.metaData.customFields && Object.keys(client.metaData.customFields).length > 0 && (
+                            <div className="space-y-3">
+                               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Form Questionnaire Responses</h4>
+                               <div className="space-y-2.5 bg-white/70 backdrop-blur-sm p-4 rounded-xl border border-blue-100/50 shadow-sm max-h-[160px] overflow-y-auto custom-scrollbar">
+                                  {Object.entries(client.metaData.customFields).map(([key, val]) => (
+                                     <div key={key} className="flex flex-col gap-0.5 border-b border-slate-100 pb-2 last:border-b-0 last:pb-0 last:mb-0">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">{key.replace(/_/g, ' ')}</span>
+                                        <span className="text-xs font-bold text-slate-700 leading-tight">{val || 'No answer'}</span>
+                                     </div>
+                                  ))}
+                               </div>
+                            </div>
+                         )}
+                      </div>
+                   </div>
+                )}
+
                 <form onSubmit={addNote} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-blue-600 transition-all">
                     <textarea 
                        className="w-full resize-none border-0 p-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 sm:text-sm sm:leading-6 font-medium"
@@ -201,7 +253,7 @@ export default function ClientProfile() {
          
          {activeTab === 'documents' && (
              <div className="space-y-6 animate-in fade-in duration-300">
-                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center relative overflow-hidden group">
+                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-10 text-center relative overflow-hidden group">
                      {/* Decorative circle */}
                      <div className="absolute -right-10 -bottom-10 h-40 w-40 bg-blue-50 rounded-full opacity-50 group-hover:scale-125 transition-all duration-500"></div>
                      
@@ -234,7 +286,7 @@ export default function ClientProfile() {
 
          {activeTab === 'calls' && (
              <div className="space-y-6 animate-in fade-in duration-300">
-                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center relative overflow-hidden group">
+                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-10 text-center relative overflow-hidden group">
                      {/* Decorative circle */}
                      <div className="absolute -left-10 -bottom-10 h-40 w-40 bg-emerald-50 rounded-full opacity-50 group-hover:scale-125 transition-all duration-500"></div>
                      

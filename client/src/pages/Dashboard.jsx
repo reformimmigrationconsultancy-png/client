@@ -38,7 +38,7 @@ export default function Dashboard() {
 
   const kpis = [
     { name: 'Portfolio Growth', value: stats.totalLeads, sub: '+12.5% vs LW', icon: UserGroupIcon, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-    { name: 'Active Pipieline', value: stats.activeLeads, sub: '8 Priority High', icon: BriefcaseIcon, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
+    { name: 'Active Pipeline', value: stats.activeLeads, sub: '8 Priority High', icon: BriefcaseIcon, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
     { name: 'Revenue Closure', value: stats.closedDeals, sub: 'Valued at $2.4M', icon: CheckBadgeIcon, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
     { name: 'Efficiency Ratio', value: `${stats.conversionRate}%`, sub: 'Optimal Range', icon: ChartBarIcon, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
   ];
@@ -49,8 +49,8 @@ export default function Dashboard() {
   })) || [];
 
   return (
-    <div className="p-10 space-y-12 max-w-[1600px] mx-auto bg-[#fdfdfd] flex-1 overflow-y-auto pb-32">
-       <div className="flex justify-between items-start">
+    <div className="p-4 md:p-10 space-y-6 md:space-y-12 max-w-[1600px] mx-auto bg-[#fdfdfd] flex-1 overflow-y-auto overflow-x-hidden pb-32">
+       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
          <div className="animate-in fade-in slide-in-from-left duration-500">
            <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
            <p className="text-slate-500 font-medium mt-1 flex items-center gap-2 text-sm">
@@ -58,9 +58,9 @@ export default function Dashboard() {
              Real-time data synchronization active
            </p>
          </div>
-         <div className="flex gap-3">
-            <button className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all">Generate Report</button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all">System Settings</button>
+         <div className="flex gap-3 w-full sm:w-auto">
+            <button className="flex-1 sm:flex-none px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all text-center">Generate Report</button>
+            <button className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all text-center">System Settings</button>
          </div>
        </div>
 
@@ -95,8 +95,8 @@ export default function Dashboard() {
                  ))}
               </div>
             </div>
-            <div className="h-80">
-               <ResponsiveContainer width="100%" height="100%">
+            <div className="h-80 w-full min-w-0 relative">
+               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <BarChart data={sourceData}>
                      <XAxis dataKey="name" stroke="#e2e8f0" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} dy={10} />
                      <YAxis stroke="#e2e8f0" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} dx={-10} />

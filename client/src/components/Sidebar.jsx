@@ -9,11 +9,13 @@ import {
   CalendarIcon,
   Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
+  PaperAirplaneIcon,
 } from '@heroicons/react/24/outline';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Inbox', href: '/inbox', icon: InboxIcon },
+  { name: 'Sent', href: '/sent', icon: PaperAirplaneIcon },
   { name: 'Leads', href: '/leads', icon: UserGroupIcon },
   { name: 'Calls', href: '/calls', icon: PhoneIcon },
   { name: 'Emails', href: '/emails', icon: EnvelopeIcon },
@@ -27,7 +29,7 @@ function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }) {
   const { pathname } = useLocation();
   const { user, logout } = useAuth();
 
@@ -48,6 +50,7 @@ export default function Sidebar() {
                   <li key={item.name}>
                     <Link
                       to={item.href}
+                      onClick={() => onClose && onClose()}
                       className={classNames(
                         isActive
                           ? 'bg-blue-50 text-blue-700 font-medium'

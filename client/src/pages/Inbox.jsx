@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../utils/api';
 import io from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
@@ -27,17 +28,119 @@ import { format, isToday, isYesterday } from 'date-fns';
 import ComposeModal from '../components/ComposeModal';
 import toast from 'react-hot-toast';
 
+const isDev = import.meta.env.DEV;
+const hasLeadPrefix = window.location.pathname.startsWith('/lead');
+const BACKEND_URL = isDev 
+  ? `${window.location.protocol}//${window.location.hostname}:8000` 
+  : `${window.location.origin}${hasLeadPrefix ? '/lead' : ''}`;
+
+const AudioPlayer = ({ url, mimetype }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState('0:00');
+  const [currentTime, setCurrentTime] = useState('0:00');
+  const audioRef = useRef(null);
+
+  const formatTime = (time) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  const togglePlay = () => {
+    if (audioRef.current.paused) {
+      audioRef.current.play();
+      setIsPlaying(true);
+    } else {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const onTimeUpdate = () => {
+    const current = audioRef.current.currentTime;
+    const total = audioRef.current.duration;
+    if (total) {
+      setProgress((current / total) * 100);
+      setCurrentTime(formatTime(current));
+    }
+  };
+
+  const onLoadedMetadata = () => {
+    setDuration(formatTime(audioRef.current.duration));
+  };
+
+  const onEnded = () => {
+    setIsPlaying(false);
+    setProgress(0);
+    setCurrentTime('0:00');
+  };
+
+  return (
+    <div className="py-2 px-1 min-w-[240px] flex items-center gap-3">
+      <div className="w-10 h-10 rounded-full bg-blue-600/10 flex items-center justify-center shrink-0">
+        <button 
+          onClick={togglePlay}
+          className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white cursor-pointer hover:scale-105 transition-all active:scale-95 shadow-sm"
+        >
+          {isPlaying ? (
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          )}
+        </button>
+      </div>
+      <div className="flex-1 flex flex-col gap-1.5 pt-1">
+        <div className="h-1 bg-slate-200/50 rounded-full relative overflow-hidden cursor-pointer" onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const pos = (e.clientX - rect.left) / rect.width;
+          audioRef.current.currentTime = pos * audioRef.current.duration;
+        }}>
+          <div 
+            className="absolute left-0 top-0 h-full bg-blue-600 transition-all duration-100" 
+            style={{ width: `${progress}%` }}
+          ></div>
+        </div>
+        <div className="flex justify-between items-center pr-2">
+          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">{isPlaying ? currentTime : duration}</span>
+          <svg viewBox="0 0 24 24" width="14" height="14" className={`${isPlaying ? 'text-blue-600' : 'text-slate-400'}`}><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/></svg>
+        </div>
+      </div>
+      <audio 
+        ref={audioRef}
+        onTimeUpdate={onTimeUpdate}
+        onLoadedMetadata={onLoadedMetadata}
+        onEnded={onEnded}
+        className="hidden"
+      >
+        <source src={`${BACKEND_URL}/api/conversations/proxy-media?url=${encodeURIComponent(url)}`} type={mimetype || 'audio/ogg'} />
+      </audio>
+    </div>
+  );
+};
+
+
+const InstagramIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+  </svg>
+);
+
 const CHANNELS = [
   { id: 'all', name: 'ALL INBOX', icon: ChatBubbleLeftRightIcon, color: 'bg-blue-600 text-white' },
   { id: 'email', name: 'DIRECT EMAIL', icon: EnvelopeIcon, color: 'bg-amber-500 text-white' },
   { id: 'whatsapp', name: 'WHATSAPP BUSINESS', icon: DevicePhoneMobileIcon, color: 'bg-emerald-500 text-white' },
   { id: 'facebook', name: 'META MESSENGER', icon: GlobeAltIcon, color: 'bg-blue-500 text-white' },
-  { id: 'instagram', name: 'INSTAGRAM DIRECT', icon: GlobeAltIcon, color: 'bg-pink-500 text-white' },
+  { id: 'instagram', name: 'INSTAGRAM DIRECT', icon: InstagramIcon, color: 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 text-white' },
   { id: 'archived', name: 'ARCHIVE VAULT', icon: ArchiveBoxIcon, color: 'bg-slate-400 text-white' },
 ];
 
 export default function Inbox() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const convIdParam = searchParams.get('convId');
   const [activeChannel, setActiveChannel] = useState('all');
   const [conversations, setConversations] = useState([]);
   const [activeConv, setActiveConv] = useState(null);
@@ -85,6 +188,13 @@ export default function Inbox() {
             const updated = res.data.conversations.find(c => c._id === activeConvRef.current._id);
             if (updated) setActiveConv(updated);
          }
+      } else if (convIdParam) {
+         const targetConv = res.data.conversations.find(c => c._id === convIdParam);
+         if (targetConv) {
+            fetchMessages(targetConv);
+         } else if (res.data.conversations.length > 0) {
+            fetchMessages(res.data.conversations[0]);
+         }
       } else if (res.data.conversations.length > 0) {
          fetchMessages(res.data.conversations[0]);
       }
@@ -112,7 +222,7 @@ export default function Inbox() {
   }, [activeChannel, searchQuery, filterUnread]);
 
   useEffect(() => {
-    const socketUrl = import.meta.env.PROD ? window.location.origin : 'http://localhost:8000';
+    const socketUrl = isDev ? `${window.location.protocol}//${window.location.hostname}:8000` : window.location.origin;
     const newSocket = io(socketUrl, {
       withCredentials: true,
       transports: ['websocket', 'polling']
@@ -139,12 +249,20 @@ export default function Inbox() {
   }, [socket, activeConv]);
 
   useEffect(() => {
-     if(activeConv && socket) {
-        socket.emit('join_conversation', activeConv._id);
-        return () => {
-           socket.emit('leave_conversation', activeConv._id);
-        }
+     if (!activeConv || !socket) return;
+     
+     const joinRoom = () => socket.emit('join_conversation', activeConv._id);
+     
+     if (socket.connected) {
+       joinRoom();
+     } else {
+       socket.once('connect', joinRoom);
      }
+     
+     return () => {
+       socket.off('connect', joinRoom);
+       if (socket.connected) socket.emit('leave_conversation', activeConv._id);
+     };
   }, [activeConv, socket]);
 
   const scrollToBottom = () => {
@@ -266,7 +384,7 @@ export default function Inbox() {
   return (
     <div className="flex bg-slate-50 flex-1 overflow-hidden h-full w-full min-h-0">
       {/* 1. Side Navigation (Channels) */}
-      <div className="w-16 lg:w-64 bg-white border-r border-slate-100 flex flex-col transition-all duration-300 min-h-0">
+      <div className="w-16 lg:w-64 bg-white border-r border-slate-100 flex-col transition-all duration-300 min-h-0 hidden md:flex">
         <div className="p-6 flex items-center justify-between border-b border-slate-100">
            <h2 className="hidden lg:block text-[10px] font-bold text-slate-400 tracking-widest uppercase">Communications</h2>
            <button 
@@ -299,7 +417,7 @@ export default function Inbox() {
       </div>
 
       {/* 2. Middle Panel (Conversation List) */}
-      <div className="w-72 lg:w-80 border-r border-slate-200 flex flex-col bg-white shadow-sm z-20">
+      <div className={`w-full md:w-72 lg:w-80 border-r border-slate-200 flex-col bg-white shadow-sm z-20 ${activeConv ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 flex flex-col gap-3 border-b border-slate-100 sticky top-0 bg-white shadow-sm z-10">
            <div className="relative group">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
@@ -311,14 +429,14 @@ export default function Inbox() {
                  onChange={(e) => setSearchQuery(e.target.value)}
               />
            </div>
-           <div className="flex items-center gap-2 flex-nowrap overflow-x-auto pb-1 no-scrollbar">
+           <div className="flex items-center gap-2 flex-nowrap overflow-x-auto pb-1 pr-4 no-scrollbar">
                <button 
                  onClick={() => setFilterUnread(!filterUnread)}
-                 className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border uppercase tracking-wider whitespace-nowrap ${filterUnread ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
+                 className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border uppercase tracking-wider whitespace-nowrap ${filterUnread ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
                >
                  Unread
                </button>
-                <button className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-white text-slate-500 border border-slate-200 hover:border-slate-300 transition-all flex items-center gap-1.5 uppercase tracking-wider whitespace-nowrap">
+                <button className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-white text-slate-500 border border-slate-200 hover:border-slate-300 transition-all flex items-center gap-1.5 uppercase tracking-wider whitespace-nowrap">
                    <FunnelIcon className="w-3 h-3 text-slate-400" />
                    Filter
                 </button>
@@ -333,7 +451,7 @@ export default function Inbox() {
                       toast.error('Sync failed', { id: tId });
                     }
                   }}
-                  className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all flex items-center gap-1.5 uppercase tracking-wider whitespace-nowrap"
+                  className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all flex items-center gap-1.5 uppercase tracking-wider whitespace-nowrap"
                 >
                   <GlobeAltIcon className="w-3 h-3" />
                   Sync FB
@@ -349,7 +467,7 @@ export default function Inbox() {
                       toast.error('Sync failed', { id: tId });
                     }
                   }}
-                  className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-pink-50 text-pink-600 border border-pink-100 hover:bg-pink-100 transition-all flex items-center gap-1.5 uppercase tracking-wider whitespace-nowrap"
+                  className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-pink-50 text-pink-600 border border-pink-100 hover:bg-pink-100 transition-all flex items-center gap-1.5 uppercase tracking-wider whitespace-nowrap"
                 >
                   <GlobeAltIcon className="w-3 h-3" />
                   Sync IG
@@ -403,7 +521,7 @@ export default function Inbox() {
                               <h4 className={`text-sm tracking-tight truncate ${conv.unreadCount > 0 ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}>
                                 {conv.client?.fullName || 'Unknown'}
                               </h4>
-                              <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap ml-2">
+                              <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap ml-2 shrink-0">
                                 {conv.lastMessageAt ? formatDateLabel(new Date(conv.lastMessageAt)) : ''}
                               </span>
                            </div>
@@ -432,50 +550,63 @@ export default function Inbox() {
       </div>
 
       {/* 3. Main Chat View */}
-      <div className="flex-1 flex flex-col bg-white overflow-hidden relative shadow-inner z-10 min-h-0">
+      <div className={`flex-1 flex-col bg-white overflow-hidden relative shadow-inner z-10 min-h-0 ${activeConv ? 'flex' : 'hidden md:flex'}`}>
          {activeConv ? (
             <>
               {/* Header */}
-               <div className="h-20 px-8 border-b border-slate-100 flex items-center justify-between bg-white/90 backdrop-blur-md sticky top-0 z-30">
-                  <div className="flex items-center gap-4">
+               <div className="h-20 px-4 md:px-8 border-b border-slate-100 flex items-center justify-between bg-white/90 backdrop-blur-md sticky top-0 z-30">
+                  <div className="flex items-center gap-2 md:gap-4 min-w-0">
+                     {/* Back Button for mobile */}
+                     <button
+                        onClick={() => {
+                           setActiveConv(null);
+                           setSearchParams({});
+                        }}
+                        className="md:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all mr-1 shrink-0"
+                        title="Back to list"
+                     >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                        </svg>
+                     </button>
                      <div className="relative group cursor-pointer">
                        <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md transition-all active:scale-95">
                           {activeConv.client?.fullName?.charAt(0) || 'C'}
                        </div>
                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" title="Client is online" />
                      </div>
-                     <div>
-                       <div className="flex items-center gap-2">
-                         <h2 className="text-base font-bold text-slate-800 tracking-tight leading-none">{activeConv.client?.fullName}</h2>
-                       </div>
-                       <div className="flex items-center gap-2 mt-1">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{activeConv.platform}</p>
-                          <span className="w-1 h-1 bg-slate-200 rounded-full" />
-                          <p className="text-[10px] font-medium text-slate-400 truncate max-w-[150px]">{activeConv.client?.email || activeConv.client?.phone || 'No contact details'}</p>
-                       </div>
+                     <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-sm md:text-base font-bold text-slate-800 tracking-tight leading-none truncate">{activeConv.client?.fullName}</h2>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                           <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">{activeConv.platform}</p>
+                           <span className="w-1 h-1 bg-slate-200 rounded-full shrink-0" />
+                           <p className="text-[9px] md:text-[10px] font-medium text-slate-400 truncate max-w-[120px] md:max-w-[200px]">{activeConv.client?.email || activeConv.client?.phone || 'No contact details'}</p>
+                        </div>
                      </div>
                   </div>
                   
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1 md:gap-1.5 shrink-0">
                      <button 
                        onClick={() => updateStatus('resolved')}
-                       className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold rounded-lg border border-emerald-200 transition-all active:scale-95"
+                       className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] md:text-[11px] font-bold rounded-lg border border-emerald-200 transition-all active:scale-95"
                        title="Mark as Resolved"
                      >
                         <CheckCircleIcon className="w-4 h-4" />
-                        <span>Resolve</span>
+                        <span className="hidden sm:inline">Resolve</span>
                      </button>
                      
-                     <div className="h-6 w-px bg-slate-200 mx-2" />
+                     <div className="hidden sm:block h-6 w-px bg-slate-200 mx-1 md:mx-2" />
                      
-                     <div className="flex gap-1">
-                        <button onClick={markUnread} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-all" title="Mark as Unread">
+                     <div className="flex gap-0.5 md:gap-1">
+                        <button onClick={markUnread} className="p-1.5 md:p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-all" title="Mark as Unread">
                            <EnvelopeOpenIcon className="w-4 h-4" />
                         </button>
-                        <button onClick={() => updateStatus('archived')} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-slate-50 rounded-lg transition-all" title="Archive">
+                        <button onClick={() => updateStatus('archived')} className="p-1.5 md:p-2 text-slate-400 hover:text-amber-600 hover:bg-slate-50 rounded-lg transition-all" title="Archive">
                            <ArchiveBoxIcon className="w-4 h-4" />
                         </button>
-                        <button onClick={deleteConversation} className="p-2 text-slate-400 hover:text-red-500 hover:bg-slate-50 rounded-lg transition-all" title="Delete">
+                        <button onClick={deleteConversation} className="p-1.5 md:p-2 text-slate-400 hover:text-red-500 hover:bg-slate-50 rounded-lg transition-all" title="Delete">
                            <TrashIcon className="w-4 h-4" />
                         </button>
                      </div>
@@ -483,7 +614,7 @@ export default function Inbox() {
                </div>
 
                {/* Messages Area */}
-               <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-8 py-10 space-y-8 bg-[#fdfdfd] w-full relative pattern-bg min-h-0">
+               <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 md:px-8 py-6 md:py-10 space-y-6 md:space-y-8 bg-[#fdfdfd] w-full relative pattern-bg min-h-0">
                  <div className="max-w-4xl mx-auto space-y-12 pb-10">
                     <div className="flex items-center justify-center">
                        <span className="px-4 py-1.5 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-full border border-slate-200/50 flex items-center gap-2">
@@ -514,6 +645,12 @@ export default function Inbox() {
                                             <div key={aIdx} className="rounded-xl overflow-hidden border border-slate-200 shadow-sm max-w-[280px]">
                                                {att.mimetype?.startsWith('image/') || msg.messageType === 'image' ? (
                                                   <img src={att.url || msg.content} alt="Attachment" className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(att.url || msg.content, '_blank')} />
+                                               ) : att.mimetype?.startsWith('audio/') || msg.messageType === 'audio' || att.url?.toLowerCase().endsWith('.ogg') || att.url?.toLowerCase().endsWith('.mp3') || att.filename?.toLowerCase().endsWith('.ogg') ? (
+                                                  <AudioPlayer url={att.url} mimetype={att.mimetype} />
+                                               ) : att.mimetype?.startsWith('video/') || msg.messageType === 'video' || att.url?.toLowerCase().endsWith('.mp4') ? (
+                                                  <video controls className="w-full max-h-[300px]">
+                                                     <source src={att.url} type={att.mimetype || 'video/mp4'} />
+                                                  </video>
                                                ) : (
                                                   <div className="p-3 bg-slate-50 flex items-center gap-3">
                                                      <PaperClipIcon className="w-5 h-5 text-slate-400" />
@@ -522,7 +659,7 @@ export default function Inbox() {
                                                )}
                                             </div>
                                          ))}
-                                         {msg.content && msg.content !== 'Sent an image' && (
+                                         {msg.content && !msg.content.startsWith('[') && (
                                             <div className={`px-4 py-2.5 rounded-2xl text-[13px] font-medium leading-relaxed ${isAgent ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-800 rounded-bl-sm'}`}>
                                                {msg.content}
                                             </div>
@@ -531,7 +668,7 @@ export default function Inbox() {
                                    ) : (
                                       <div 
                                          className={`px-4 py-2.5 rounded-2xl text-[13px] font-medium leading-relaxed whitespace-pre-wrap break-words break-all overflow-y-auto max-h-[60vh] custom-scrollbar transition-all ${isAgent ? 'bg-blue-600 text-white rounded-br-sm shadow-sm' : 'bg-slate-100 text-slate-800 rounded-bl-sm'}`}
-                                         dangerouslySetInnerHTML={{ __html: msg.content.replace(/<[^>]*>?/gm, '') }}
+                                         dangerouslySetInnerHTML={{ __html: (msg.content?.startsWith('[') && msg.content?.endsWith(']')) ? '' : msg.content.replace(/<[^>]*>?/gm, '') }}
                                       />
                                    )}
                                    {msg.messageType === 'email' && <div className="mt-2 pt-2 border-t border-white/20 text-[9px] italic opacity-70">via Email</div>}
@@ -550,19 +687,19 @@ export default function Inbox() {
                </div>
 
                 {/* Input Box */}
-                <div className="px-8 py-6 border-t border-slate-100 bg-white/80 backdrop-blur-md sticky bottom-0 z-30">
+                <div className="px-4 md:px-8 py-4 md:py-6 border-t border-slate-100 bg-white/80 backdrop-blur-md sticky bottom-0 z-30">
                   <div className="max-w-4xl mx-auto">
                     <form onSubmit={handleSend} className="flex items-center gap-2 group">
-                        <div className="flex items-center gap-1 shrink-0">
-                           <button type="button" className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
-                              <PlusCircleIcon className="w-6 h-6" />
+                        <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
+                           <button type="button" className="p-1 md:p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
+                              <PlusCircleIcon className="w-5 h-5 md:w-6 md:h-6" />
                            </button>
-                           <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
-                              <PhotoIcon className="w-6 h-6" />
+                           <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1 md:p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
+                              <PhotoIcon className="w-5 h-5 md:w-6 md:h-6" />
                               <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
                            </button>
-                           <button type="button" className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
-                              <FaceSmileIcon className="w-6 h-6" />
+                           <button type="button" className="hidden sm:block p-1 md:p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
+                              <FaceSmileIcon className="w-5 h-5 md:w-6 md:h-6" />
                            </button>
                         </div>
 

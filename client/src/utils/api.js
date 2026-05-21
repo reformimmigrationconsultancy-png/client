@@ -1,8 +1,17 @@
 import axios from 'axios';
 
-const isProduction = import.meta.env.PROD;
+const isDev = import.meta.env.DEV;
+const hasLeadPrefix = window.location.pathname.startsWith('/lead');
+
+const getBaseURL = () => {
+  if (isDev) {
+    return `${window.location.protocol}//${window.location.hostname}:8000/api`;
+  }
+  return `${window.location.origin}${hasLeadPrefix ? '/lead' : ''}/api`;
+};
+
 const api = axios.create({
-  baseURL: isProduction ? '/lead/api' : 'http://localhost:8000/api',
+  baseURL: getBaseURL(),
 });
 
 api.interceptors.request.use(

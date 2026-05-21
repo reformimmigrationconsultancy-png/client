@@ -61,14 +61,14 @@ export default function Emails() {
   );
 
   return (
-    <div className="p-10 w-full h-full bg-[#fdfdfd] overflow-y-auto pb-32">
+    <div className="p-4 md:p-10 w-full h-full bg-[#fdfdfd] overflow-y-auto pb-32">
       <div className="max-w-7xl mx-auto space-y-12">
        <div>
          <h2 className="text-4xl font-black text-slate-900 tracking-tight">Email Command Center</h2>
          <p className="text-slate-500 font-medium mt-2">Deploy high-impact communications using curated templates.</p>
        </div>
 
-       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10">
          {/* Templates Sidebar */}
          <div className="lg:col-span-4 space-y-6">
             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -93,7 +93,7 @@ export default function Emails() {
          </div>
 
          {/* Email Editor */}
-         <div className="lg:col-span-8 bg-white rounded-[40px] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden p-10 space-y-8 animate-in fade-in slide-in-from-right duration-500">
+         <div className="lg:col-span-8 bg-white rounded-3xl md:rounded-[40px] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden p-4 md:p-10 space-y-8 animate-in fade-in slide-in-from-right duration-500">
             <div className="flex items-center justify-between">
                 <h3 className="text-xl font-black text-slate-900 tracking-tight italic uppercase">New Dispatch</h3>
                 <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>

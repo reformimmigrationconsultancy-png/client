@@ -33,7 +33,7 @@ export default function Login() {
       </div>
 
       <div className="w-full max-w-[450px] relative z-10 animate-in fade-in zoom-in duration-700">
-        <div className="bg-white/5 backdrop-blur-2xl px-10 py-16 rounded-[40px] border border-white/10 shadow-2xl">
+        <div className="bg-white/5 backdrop-blur-2xl px-6 md:px-10 py-10 md:py-16 rounded-3xl md:rounded-[40px] border border-white/10 shadow-2xl">
           <div className="mb-12 text-center">
             <h1 className="text-4xl font-black text-white tracking-tight uppercase italic mb-2">
               Manpreet

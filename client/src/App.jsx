@@ -14,6 +14,7 @@ import Emails from './pages/Emails';
 import Calendar from './pages/Calendar';
 import Settings from './pages/Settings';
 import Messenger from './pages/Messenger';
+import Sent from './pages/Sent';
 
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
              <Route path="/calendar" element={<Calendar />} /> 
              <Route path="/settings" element={<Settings />} /> 
              <Route path="/messenger" element={<Messenger />} /> 
+             <Route path="/sent" element={<Sent />} /> 
           </Route>
         </Routes>
       </AuthProvider>
