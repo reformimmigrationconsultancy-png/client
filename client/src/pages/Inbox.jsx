@@ -30,6 +30,32 @@ import toast from 'react-hot-toast';
 
 import { BACKEND_URL } from '../utils/api';
 
+const getBackendHost = () => {
+  try {
+    return new URL(BACKEND_URL).hostname;
+  } catch (e) {
+    return '';
+  }
+};
+const backendHost = getBackendHost();
+
+const getMediaUrl = (url) => {
+  if (!url) return '';
+  const isLocal = url.includes('localhost') || 
+                  url.includes('manpreetcrm.com') ||
+                  url.includes(window.location.hostname) || 
+                  (backendHost && url.includes(backendHost)) || 
+                  url.startsWith('/') || 
+                  url.startsWith('uploads/');
+  if (isLocal) {
+    return url;
+  }
+  if (url.startsWith('http') || url.startsWith('//')) {
+    return `${BACKEND_URL}/api/conversations/proxy-media?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+};
+
 const AudioPlayer = ({ url, mimetype }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -109,7 +135,7 @@ const AudioPlayer = ({ url, mimetype }) => {
         onEnded={onEnded}
         className="hidden"
       >
-        <source src={`${BACKEND_URL}/api/conversations/proxy-media?url=${encodeURIComponent(url)}`} type={mimetype || 'audio/ogg'} />
+        <source src={getMediaUrl(url)} type={mimetype || 'audio/ogg'} />
       </audio>
     </div>
   );
@@ -639,12 +665,12 @@ export default function Inbox() {
                                          {(msg.attachments || []).map((att, aIdx) => (
                                             <div key={aIdx} className="rounded-xl overflow-hidden border border-slate-200 shadow-sm max-w-[280px]">
                                                {att.mimetype?.startsWith('image/') || msg.messageType === 'image' ? (
-                                                  <img src={att.url || msg.content} alt="Attachment" className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(att.url || msg.content, '_blank')} />
+                                                  <img src={getMediaUrl(att.url || msg.content)} alt="Attachment" className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(att.url || msg.content, '_blank')} />
                                                ) : att.mimetype?.startsWith('audio/') || msg.messageType === 'audio' || att.url?.toLowerCase().endsWith('.ogg') || att.url?.toLowerCase().endsWith('.mp3') || att.filename?.toLowerCase().endsWith('.ogg') ? (
                                                   <AudioPlayer url={att.url} mimetype={att.mimetype} />
                                                ) : att.mimetype?.startsWith('video/') || msg.messageType === 'video' || att.url?.toLowerCase().endsWith('.mp4') ? (
                                                   <video controls className="w-full max-h-[300px]">
-                                                     <source src={att.url} type={att.mimetype || 'video/mp4'} />
+                                                     <source src={getMediaUrl(att.url)} type={att.mimetype || 'video/mp4'} />
                                                   </video>
                                                ) : (
                                                   <div className="p-3 bg-slate-50 flex items-center gap-3">
