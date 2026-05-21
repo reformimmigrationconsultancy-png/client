@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import api from '../utils/api';
+import api, { BACKEND_URL } from '../utils/api';
 import toast from 'react-hot-toast';
 import { 
   Cog6ToothIcon, 
@@ -149,8 +149,8 @@ function FacebookTokenPanel() {
   const isExpiringSoon = tokenStatus?.status === 'expiring_soon';
   const isPermanent = tokenStatus?.neverExpires === true || tokenStatus?.expiresAt === 'Never Expires';
 
-  // Derive webhook tunnel/endpoint URL dynamically from current location
-  const derivedWebhookUrl = `${window.location.origin}/webhook/facebook`;
+  // Derive webhook tunnel/endpoint URL dynamically from backend location
+  const derivedWebhookUrl = `${BACKEND_URL}/webhook/facebook`;
   const defaultVerifyToken = "manpreet";
 
   return (

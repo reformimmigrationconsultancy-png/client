@@ -16,11 +16,7 @@ import {
 import { format, isToday, isYesterday } from 'date-fns';
 import toast from 'react-hot-toast';
 
-const isDev = import.meta.env.DEV;
-const hasLeadPrefix = window.location.pathname.startsWith('/lead');
-const BACKEND_URL = isDev 
-  ? `${window.location.protocol}//${window.location.hostname}:8000` 
-  : `${window.location.origin}${hasLeadPrefix ? '/lead' : ''}`;
+import { BACKEND_URL } from '../utils/api';
 
 const AudioPlayer = ({ url, mimetype }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -204,8 +200,7 @@ export default function Messenger() {
 
   // 3. Socket Setup
   useEffect(() => {
-    const socketUrl = isDev ? `${window.location.protocol}//${window.location.hostname}:8000` : window.location.origin;
-    const newSocket = io(socketUrl, {
+    const newSocket = io(BACKEND_URL, {
       withCredentials: true,
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 5,

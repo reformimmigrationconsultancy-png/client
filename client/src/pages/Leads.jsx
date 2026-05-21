@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useNavigate } from 'react-router-dom';
-import api from '../utils/api';
+import api, { BACKEND_URL } from '../utils/api';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { 
@@ -52,9 +52,7 @@ export default function Leads() {
 
   useEffect(() => {
     fetchLeads();
-    const isDev = import.meta.env.DEV;
-    const socketUrl = isDev ? `${window.location.protocol}//${window.location.hostname}:8000` : window.location.origin;
-    const newSocket = io(socketUrl, { withCredentials: true, transports: ['websocket', 'polling'] });
+    const newSocket = io(BACKEND_URL, { withCredentials: true, transports: ['websocket', 'polling'] });
     setSocket(newSocket);
     return () => newSocket.close();
   }, []);
