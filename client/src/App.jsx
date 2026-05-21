@@ -18,8 +18,9 @@ import Sent from './pages/Sent';
 
 
 function App() {
+  const basename = window.location.pathname.startsWith('/lead') ? '/lead' : '/';
   return (
-    <Router basename="/lead">
+    <Router basename={basename}>
       <AuthProvider>
         <Toaster position="top-right" />
         <Routes>
