@@ -60,11 +60,6 @@ export default function Leads() {
   useEffect(() => {
     if (!socket) return;
     const handleNewLead = (lead) => {
-      toast.success(`New Meta Lead: ${lead.fullName}`, {
-        icon: '🔥',
-        style: { borderRadius: '15px', background: '#1e293b', color: '#fff', fontSize: '14px', fontWeight: 'bold' },
-        duration: 5000
-      });
       fetchLeads();
     };
     socket.on('new_lead', handleNewLead);
@@ -75,7 +70,8 @@ export default function Leads() {
     try {
       setLoading(true);
       const res = await api.get('/clients');
-      const leads = res.data.clients;
+      // Filter to only show Meta leads as requested by the user
+      const leads = res.data.clients.filter(l => l.source === 'facebook' || l.source === 'instagram');
       const initialColumns = Object.keys(STAGES).reduce((acc, key) => {
         acc[key] = { ...STAGES[key], items: leads.filter(l => l.stage === key) };
         return acc;
@@ -163,7 +159,7 @@ export default function Leads() {
   return (
     <div className="flex flex-col h-screen bg-[#f1f5f9] overflow-hidden">
       {/* Premium Header */}
-      <div className="px-4 md:px-8 py-4 md:py-6 bg-white border-b border-slate-200 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 shadow-sm z-50 shrink-0">
+      <div className="px-4 md:px-8 py-4 md:py-6 bg-white border-b border-slate-200 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 shadow-sm z-30 shrink-0">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6">
           <div>
             <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Revenue Pipeline</h1>

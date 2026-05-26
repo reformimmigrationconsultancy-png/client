@@ -18,7 +18,8 @@ import Sent from './pages/Sent';
 
 
 function App() {
-  const basename = window.location.pathname.startsWith('/lead') ? '/lead' : '/';
+  const pathname = window.location.pathname;
+  const basename = (pathname === '/lead' || pathname.startsWith('/lead/')) ? '/lead' : '/';
   return (
     <Router basename={basename}>
       <AuthProvider>
