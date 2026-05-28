@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import api from '../utils/api';
+import api, { BACKEND_URL } from '../utils/api';
+import io from 'socket.io-client';
 import { 
   EnvelopeIcon, PlusIcon, InboxIcon, StarIcon, 
   ClockIcon, PaperAirplaneIcon, DocumentIcon, 
   TagIcon, MagnifyingGlassIcon, AdjustmentsHorizontalIcon,
   ChevronLeftIcon, ChevronRightIcon, ArrowPathIcon,
   EllipsisVerticalIcon, XMarkIcon, ChevronDownIcon,
-  PaperClipIcon, PhotoIcon, LinkIcon, FaceSmileIcon, TrashIcon, Bars3Icon
+  PaperClipIcon, PhotoIcon, LinkIcon, FaceSmileIcon, TrashIcon, Bars3Icon,
+  ArrowUturnLeftIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { format, isToday, isThisYear } from 'date-fns';
@@ -16,7 +18,7 @@ export default function Emails() {
   const [activeTab, setActiveTab] = useState('inbox');
   const [composeOpen, setComposeOpen] = useState(false);
   const [emailSidebarOpen, setEmailSidebarOpen] = useState(false);
-  const [allEmails, setAllEmails] = useState({ inbox: [], sent: [] });
+  const [allEmails, setAllEmails] = useState({ inbox: [], sent: [], trash: [] });
   const [emails, setEmails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,8 +34,33 @@ export default function Emails() {
     fetchEmails();
     fetchTemplates();
 
-    const io = api.getSocket?.(); // If your api provides a socket instance, or we can just let polling or manual refresh handle it.
-    // Actually, Layout.jsx usually handles socket, so we can listen there, or just rely on the manual refresh button for now to keep it exactly like Gmail.
+    const socket = io(BACKEND_URL, { withCredentials: true, transports: ['websocket', 'polling'] });
+    
+    socket.on('new_message', (msg) => {
+      // Check if it is an email
+      if (msg.messageType === 'email' || msg.conversationId?.platform === 'email') {
+        setAllEmails(prev => {
+          const isTrash = msg.isTrash;
+          const isInbox = msg.sender === 'client' && !msg.isTrash;
+          const isSent = msg.sender === 'agent' && !msg.isTrash;
+          
+          // Avoid duplicate messages in the state
+          const exists = [...prev.inbox, ...prev.sent, ...prev.trash].some(m => m._id === msg._id);
+          if (exists) return prev;
+          
+          return {
+            inbox: isInbox ? [msg, ...prev.inbox] : prev.inbox,
+            sent: isSent ? [msg, ...prev.sent] : prev.sent,
+            trash: isTrash ? [msg, ...prev.trash] : prev.trash
+          };
+        });
+      }
+    });
+
+    return () => {
+      socket.off('new_message');
+      socket.close();
+    };
   }, [activeTab]);
 
   const fetchEmails = async () => {
@@ -42,13 +69,15 @@ export default function Emails() {
       const res = await api.get('/emails/all');
       const allMsgs = res.data.messages || [];
       
-      const inbox = allMsgs.filter(m => m.sender === 'client');
-      const sent = allMsgs.filter(m => m.sender === 'agent');
+      const trash = allMsgs.filter(m => m.isTrash);
+      const inbox = allMsgs.filter(m => m.sender === 'client' && !m.isTrash);
+      const sent = allMsgs.filter(m => m.sender === 'agent' && !m.isTrash);
       
-      setAllEmails({ inbox, sent });
+      setAllEmails({ inbox, sent, trash });
       
       if (activeTab === 'inbox') setEmails(inbox);
       else if (activeTab === 'sent') setEmails(sent);
+      else if (activeTab === 'trash') setEmails(trash);
       else setEmails([]);
       
     } catch (err) {
@@ -66,13 +95,15 @@ export default function Emails() {
       const res = await api.get('/emails/sync');
       const allMsgs = res.data.messages || [];
       
-      const inbox = allMsgs.filter(m => m.sender === 'client');
-      const sent = allMsgs.filter(m => m.sender === 'agent');
+      const trash = allMsgs.filter(m => m.isTrash);
+      const inbox = allMsgs.filter(m => m.sender === 'client' && !m.isTrash);
+      const sent = allMsgs.filter(m => m.sender === 'agent' && !m.isTrash);
       
-      setAllEmails({ inbox, sent });
+      setAllEmails({ inbox, sent, trash });
       
       if (activeTab === 'inbox') setEmails(inbox);
       else if (activeTab === 'sent') setEmails(sent);
+      else if (activeTab === 'trash') setEmails(trash);
       else setEmails([]);
       
       toast.success('Inbox updated');
@@ -87,6 +118,7 @@ export default function Emails() {
   useEffect(() => {
     if (activeTab === 'inbox') setEmails(allEmails.inbox);
     else if (activeTab === 'sent') setEmails(allEmails.sent);
+    else if (activeTab === 'trash') setEmails(allEmails.trash);
     else setEmails([]);
   }, [activeTab, allEmails]);
 
@@ -165,19 +197,42 @@ export default function Emails() {
 
   const handleDeleteEmail = async (msg, e) => {
      if (e) e.stopPropagation();
-     if (!window.confirm('Are you sure you want to delete this email?')) return;
+     if (!window.confirm('Are you sure you want to permanently delete this email?')) return;
      
      try {
        await api.delete(`/emails/${msg._id}`);
-       toast.success('Email deleted');
+       toast.success('Email deleted permanently');
        if (selectedEmail?._id === msg._id) setSelectedEmail(null);
-       
-       const removeMsg = (list) => list.filter(m => m._id !== msg._id);
-       setAllEmails(prev => ({ inbox: removeMsg(prev.inbox), sent: removeMsg(prev.sent) }));
-       setEmails(prev => removeMsg(prev));
+       fetchEmails();
      } catch (err) {
        console.error('Failed to delete email', err);
        toast.error('Failed to delete email');
+     }
+  };
+
+  const handleTrashEmail = async (msg, e) => {
+     if (e) e.stopPropagation();
+     try {
+       await api.put(`/emails/trash/${msg._id}`);
+       toast.success('Moved to Trash');
+       if (selectedEmail?._id === msg._id) setSelectedEmail(null);
+       fetchEmails();
+     } catch (err) {
+       console.error('Failed to move to trash', err);
+       toast.error('Failed to move to trash');
+     }
+  };
+
+  const handleUntrashEmail = async (msg, e) => {
+     if (e) e.stopPropagation();
+     try {
+       await api.put(`/emails/untrash/${msg._id}`);
+       toast.success('Restored from Trash');
+       if (selectedEmail?._id === msg._id) setSelectedEmail(null);
+       fetchEmails();
+     } catch (err) {
+       console.error('Failed to restore email', err);
+       toast.error('Failed to restore email');
      }
   };
 
@@ -196,6 +251,7 @@ export default function Emails() {
     { id: 'snoozed', name: 'Snoozed', icon: ClockIcon },
     { id: 'sent', name: 'Sent', icon: PaperAirplaneIcon, count: allEmails.sent.length },
     { id: 'drafts', name: 'Drafts', icon: DocumentIcon },
+    { id: 'trash', name: 'Trash', icon: TrashIcon, count: allEmails.trash.length },
     { id: 'more', name: 'More', icon: ChevronDownIcon },
   ];
 
@@ -292,11 +348,15 @@ export default function Emails() {
             </div>
          </div>
 
-         {/* Tabs - Only Primary */}
+         {/* Tabs - Current Folder */}
          {!selectedEmail && (
             <div className="flex border-b border-gray-100 px-4 shrink-0">
-               <button className="flex items-center gap-4 px-4 py-3 border-b-4 border-[#0b57d0] text-[#0b57d0] font-semibold">
-                  <InboxIcon className="w-5 h-5" /> Primary
+               <button className="flex items-center gap-4 px-4 py-3 border-b-4 border-[#0b57d0] text-[#0b57d0] font-semibold capitalize">
+                  {activeTab === 'inbox' ? <InboxIcon className="w-5 h-5" /> : 
+                   activeTab === 'sent' ? <PaperAirplaneIcon className="w-5 h-5" /> : 
+                   activeTab === 'trash' ? <TrashIcon className="w-5 h-5" /> : 
+                   <InboxIcon className="w-5 h-5" />}
+                  {activeTab === 'inbox' ? 'Primary' : activeTab}
                </button>
             </div>
          )}
@@ -311,7 +371,12 @@ export default function Emails() {
                      </button>
                      <div className="flex gap-3 text-gray-600">
                         <button className="p-2 hover:bg-gray-100 rounded-full"><DocumentIcon className="w-5 h-5" /></button>
-                        <button onClick={() => handleDeleteEmail(selectedEmail)} className="p-2 hover:bg-gray-100 rounded-full"><TrashIcon className="w-5 h-5" /></button>
+                        {activeTab === 'trash' && (
+                           <button onClick={(e) => handleUntrashEmail(selectedEmail, e)} className="p-2 hover:bg-gray-100 rounded-full" title="Restore"><ArrowUturnLeftIcon className="w-5 h-5" /></button>
+                        )}
+                        <button onClick={(e) => activeTab === 'trash' ? handleDeleteEmail(selectedEmail, e) : handleTrashEmail(selectedEmail, e)} className="p-2 hover:bg-gray-100 rounded-full" title={activeTab === 'trash' ? 'Delete forever' : 'Move to trash'}>
+                           <TrashIcon className="w-5 h-5" />
+                        </button>
                         <button className="p-2 hover:bg-gray-100 rounded-full"><EnvelopeIcon className="w-5 h-5" /></button>
                      </div>
                   </div>
@@ -399,7 +464,12 @@ export default function Emails() {
 
                            <div className="w-20 hidden group-hover:flex items-center justify-end gap-2 text-gray-500 shrink-0">
                               <button className="p-1.5 hover:bg-gray-100 rounded-full"><DocumentIcon className="w-4 h-4" /></button>
-                              <button onClick={(e) => handleDeleteEmail(msg, e)} className="p-1.5 hover:bg-gray-100 rounded-full"><TrashIcon className="w-4 h-4" /></button>
+                              {activeTab === 'trash' && (
+                                 <button onClick={(e) => handleUntrashEmail(msg, e)} className="p-1.5 hover:bg-gray-100 rounded-full" title="Restore"><ArrowUturnLeftIcon className="w-4 h-4" /></button>
+                              )}
+                              <button onClick={(e) => activeTab === 'trash' ? handleDeleteEmail(msg, e) : handleTrashEmail(msg, e)} className="p-1.5 hover:bg-gray-100 rounded-full" title={activeTab === 'trash' ? 'Delete forever' : 'Move to trash'}>
+                                 <TrashIcon className="w-4 h-4" />
+                              </button>
                               <button className="p-1.5 hover:bg-gray-100 rounded-full"><EnvelopeIcon className="w-4 h-4" /></button>
                               <button className="p-1.5 hover:bg-gray-100 rounded-full"><ClockIcon className="w-4 h-4" /></button>
                            </div>

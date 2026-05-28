@@ -59,19 +59,25 @@ export default function Leads() {
 
   useEffect(() => {
     if (!socket) return;
-    const handleNewLead = (lead) => {
+    const handleRefresh = () => {
       fetchLeads();
     };
-    socket.on('new_lead', handleNewLead);
-    return () => socket.off('new_lead', handleNewLead);
+    socket.on('new_lead', handleRefresh);
+    socket.on('new_client', handleRefresh);
+    socket.on('update_lead', handleRefresh);
+    return () => {
+      socket.off('new_lead', handleRefresh);
+      socket.off('new_client', handleRefresh);
+      socket.off('update_lead', handleRefresh);
+    };
   }, [socket]);
 
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/clients');
-      // Filter to only show Meta leads as requested by the user
-      const leads = res.data.clients.filter(l => l.source === 'facebook' || l.source === 'instagram');
+      // Fetch up to 1000 leads so that pagination does not cut off board items
+      const res = await api.get('/clients?limit=1000');
+      const leads = res.data.clients || [];
       const initialColumns = Object.keys(STAGES).reduce((acc, key) => {
         acc[key] = { ...STAGES[key], items: leads.filter(l => l.stage === key) };
         return acc;
@@ -141,7 +147,8 @@ export default function Leads() {
       localStorage.setItem('last_meta_sync', now);
       fetchLeads();
     } catch (err) {
-      toast.error('Sync failed. Please check Meta connection.', { id: toastId });
+      const errorMsg = err.response?.data?.message || 'Sync failed. Please check Meta connection.';
+      toast.error(errorMsg, { id: toastId });
     } finally {
       setSyncing(false);
     }
