@@ -17,7 +17,6 @@ const navigation = [
   { name: 'Inbox', href: '/inbox', icon: InboxIcon },
   { name: 'Sent', href: '/sent', icon: PaperAirplaneIcon },
   { name: 'Leads', href: '/leads', icon: UserGroupIcon },
-  { name: 'Calls', href: '/calls', icon: PhoneIcon },
   { name: 'Emails', href: '/emails', icon: EnvelopeIcon },
   { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
   { name: 'Messenger', href: '/messenger', icon: InboxIcon },
