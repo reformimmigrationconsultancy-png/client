@@ -14,12 +14,10 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
-  { name: 'Inbox', href: '/inbox', icon: InboxIcon },
-  { name: 'Sent', href: '/sent', icon: PaperAirplaneIcon },
   { name: 'Leads', href: '/leads', icon: UserGroupIcon },
   { name: 'Emails', href: '/emails', icon: EnvelopeIcon },
-  { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
-  { name: 'Messenger', href: '/messenger', icon: InboxIcon },
+  { name: 'Inbox', href: '/inbox', icon: InboxIcon },
+  { name: 'Sent', href: '/sent', icon: PaperAirplaneIcon },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];
 

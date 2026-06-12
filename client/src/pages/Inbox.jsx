@@ -151,12 +151,8 @@ const InstagramIcon = (props) => (
 );
 
 const CHANNELS = [
-  { id: 'all', name: 'ALL INBOX', icon: ChatBubbleLeftRightIcon, color: 'bg-blue-600 text-white' },
-  { id: 'email', name: 'DIRECT EMAIL', icon: EnvelopeIcon, color: 'bg-amber-500 text-white' },
-  { id: 'whatsapp', name: 'WHATSAPP BUSINESS', icon: DevicePhoneMobileIcon, color: 'bg-emerald-500 text-white' },
-  { id: 'facebook', name: 'META MESSENGER', icon: GlobeAltIcon, color: 'bg-blue-500 text-white' },
-  { id: 'instagram', name: 'INSTAGRAM DIRECT', icon: InstagramIcon, color: 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 text-white' },
-  { id: 'archived', name: 'ARCHIVE VAULT', icon: ArchiveBoxIcon, color: 'bg-slate-400 text-white' },
+  { id: 'all', name: 'ALL LEADS', icon: ChatBubbleLeftRightIcon, color: 'bg-blue-600 text-white' },
+  { id: 'email', name: 'DIRECT EMAIL', icon: EnvelopeIcon, color: 'bg-amber-500 text-white' }
 ];
 
 export default function Inbox() {
@@ -460,38 +456,6 @@ export default function Inbox() {
                 <button className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-white text-slate-500 border border-slate-200 hover:border-slate-300 transition-all flex items-center gap-1.5 uppercase tracking-wider whitespace-nowrap">
                    <FunnelIcon className="w-3 h-3 text-slate-400" />
                    Filter
-                </button>
-                <button 
-                  onClick={async () => {
-                    const tId = toast.loading('Syncing with Facebook...');
-                    try {
-                      const res = await api.post('/conversations/sync/facebook');
-                      toast.success(res.data.message, { id: tId });
-                      fetchConversations(true);
-                    } catch (err) {
-                      toast.error('Sync failed', { id: tId });
-                    }
-                  }}
-                  className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all flex items-center gap-1.5 uppercase tracking-wider whitespace-nowrap"
-                >
-                  <GlobeAltIcon className="w-3 h-3" />
-                  Sync FB
-                </button>
-                <button 
-                  onClick={async () => {
-                    const tId = toast.loading('Syncing with Instagram...');
-                    try {
-                      const res = await api.post('/conversations/sync/instagram');
-                      toast.success(res.data.message, { id: tId });
-                      fetchConversations(true);
-                    } catch (err) {
-                      toast.error('Sync failed', { id: tId });
-                    }
-                  }}
-                  className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-pink-50 text-pink-600 border border-pink-100 hover:bg-pink-100 transition-all flex items-center gap-1.5 uppercase tracking-wider whitespace-nowrap"
-                >
-                  <GlobeAltIcon className="w-3 h-3" />
-                  Sync IG
                 </button>
              </div>
         </div>

@@ -11,9 +11,7 @@ import Leads from './pages/Leads';
 import ClientProfile from './pages/ClientProfile';
 import Calls from './pages/Calls';
 import Emails from './pages/Emails';
-import Calendar from './pages/Calendar';
 import Settings from './pages/Settings';
-import Messenger from './pages/Messenger';
 import Sent from './pages/Sent';
 
 
@@ -35,9 +33,7 @@ function App() {
              <Route path="/clients/:id" element={<ClientProfile />} />
              <Route path="/calls" element={<Calls />} />
              <Route path="/emails" element={<Emails />} />
-             <Route path="/calendar" element={<Calendar />} /> 
              <Route path="/settings" element={<Settings />} /> 
-             <Route path="/messenger" element={<Messenger />} /> 
              <Route path="/sent" element={<Sent />} /> 
           </Route>
         </Routes>

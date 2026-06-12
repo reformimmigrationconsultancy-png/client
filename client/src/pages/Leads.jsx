@@ -47,8 +47,7 @@ export default function Leads() {
   const [newLead, setNewLead] = useState({
     fullName: '', email: '', phone: '', source: 'manual', stage: 'new_lead', loanAmount: '', propertyValue: ''
   });
-  const [syncing, setSyncing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState(localStorage.getItem('last_meta_sync') || 'Never');
+
 
   useEffect(() => {
     fetchLeads();
@@ -135,24 +134,7 @@ export default function Leads() {
     return newCols;
   }, [columns, searchQuery]);
 
-  const syncMetaLeads = async () => {
-    if (syncing) return;
-    setSyncing(true);
-    const toastId = toast.loading('Syncing historical Meta leads...');
-    try {
-      const res = await api.post('/clients/sync-meta-leads');
-      toast.success(`Sync complete! Added ${res.data.count} new leads.`, { id: toastId });
-      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setLastSyncTime(now);
-      localStorage.setItem('last_meta_sync', now);
-      fetchLeads();
-    } catch (err) {
-      const errorMsg = err.response?.data?.message || 'Sync failed. Please check Meta connection.';
-      toast.error(errorMsg, { id: toastId });
-    } finally {
-      setSyncing(false);
-    }
-  };
+
 
   if (loading) return (
     <div className="flex h-full items-center justify-center bg-slate-50">
@@ -189,19 +171,7 @@ export default function Leads() {
         </div>
 
         <div className="flex items-center justify-between sm:justify-end gap-2 md:gap-3 w-full lg:w-auto">
-          <div className="hidden sm:flex flex-col text-right pr-1">
-            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Meta Sync</span>
-            <span className="text-[11px] font-black text-slate-600">{lastSyncTime}</span>
-          </div>
-          <button 
-            onClick={syncMetaLeads}
-            disabled={syncing}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-60 text-slate-700 rounded-xl font-bold text-xs md:text-sm transition-all border border-slate-200"
-          >
-            <ArrowPathIcon className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-            <span>{syncing ? 'Syncing...' : 'Sync Meta'}</span>
-          </button>
-          <div className="hidden sm:block h-6 w-[1px] bg-slate-200"></div>
+
           <button onClick={fetchLeads} className="p-2.5 text-slate-500 hover:bg-slate-50 rounded-xl transition-all border border-transparent hover:border-slate-200">
             <ArrowPathIcon className="w-5 h-5" />
           </button>
