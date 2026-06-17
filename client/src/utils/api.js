@@ -4,7 +4,7 @@ const isDev = import.meta.env.DEV;
 
 export const BACKEND_URL = isDev
   ? `${window.location.protocol}//${window.location.hostname}:8000`
-  : 'https://lead-tgdl.onrender.com';
+  : window.location.origin;
 
 const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,
