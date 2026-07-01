@@ -7,7 +7,7 @@ const hasLeadPrefix = pathname === '/lead' || pathname.startsWith('/lead/');
 
 export const BACKEND_URL = isDev
   ? `${window.location.protocol}//${window.location.hostname}:8000`
-  : `${window.location.origin}${hasLeadPrefix ? '/lead' : ''}`;
+  : 'https://lead-tgdl.onrender.com';
 
 const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,
