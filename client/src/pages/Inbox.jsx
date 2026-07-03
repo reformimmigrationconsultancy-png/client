@@ -242,7 +242,7 @@ export default function Inbox() {
   useEffect(() => {
     const newSocket = io(BACKEND_URL, {
       withCredentials: true,
-      transports: ['websocket', 'polling']
+      transports: ['polling', 'websocket']
     });
     setSocket(newSocket);
     return () => newSocket.close();

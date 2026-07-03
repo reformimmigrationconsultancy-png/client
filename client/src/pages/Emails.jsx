@@ -34,7 +34,7 @@ export default function Emails() {
     fetchEmails();
     fetchTemplates();
 
-    const socket = io(BACKEND_URL, { withCredentials: true, transports: ['websocket', 'polling'] });
+    const socket = io(BACKEND_URL, { withCredentials: true, transports: ['polling', 'websocket'] });
     
     socket.on('new_message', (msg) => {
       // Check if it is an email

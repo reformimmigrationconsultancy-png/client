@@ -22,7 +22,7 @@ export default function Layout() {
   useEffect(() => {
     if (!user) return;
     
-    const socket = io(BACKEND_URL, { withCredentials: true, transports: ['websocket', 'polling'] });
+    const socket = io(BACKEND_URL, { withCredentials: true, transports: ['polling', 'websocket'] });
     
     socket.on('new_lead', (lead) => {
       playNotificationSound();

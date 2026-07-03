@@ -51,7 +51,7 @@ export default function Leads() {
 
   useEffect(() => {
     fetchLeads();
-    const newSocket = io(BACKEND_URL, { withCredentials: true, transports: ['websocket', 'polling'] });
+    const newSocket = io(BACKEND_URL, { withCredentials: true, transports: ['polling', 'websocket'] });
     setSocket(newSocket);
     return () => newSocket.close();
   }, []);
