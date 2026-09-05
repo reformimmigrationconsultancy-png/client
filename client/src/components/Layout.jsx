@@ -53,38 +53,9 @@ export default function Layout() {
       });
     });
 
-    socket.on('new_message', (msg) => {
-      if (msg.sender !== 'client') return;
-      playNotificationSound();
-      
-      const platform = msg.conversationId?.platform || msg.messageType || 'message';
-      const clientName = msg.conversationId?.client?.fullName || 'Client';
-      
-      let icon = '💬';
-      let borderColor = '#00a884'; // whatsapp green
-      
-      if (platform === 'email') { icon = '📧'; borderColor = '#f59e0b'; }
-      else if (platform === 'instagram') { icon = '📸'; borderColor = '#ec4899'; }
-      else if (platform === 'facebook') { icon = '⚡'; borderColor = '#3b82f6'; }
-
-      toast(
-        <div className="flex flex-col gap-1 w-full max-w-[85vw] sm:min-w-[280px]">
-           <div className="flex justify-between items-start gap-3 mb-0.5">
-             <span className="font-bold text-sm text-white line-clamp-1 flex-1">{clientName}</span>
-             <span className="text-[9px] uppercase text-slate-400 font-black tracking-widest shrink-0 mt-1">{platform}</span>
-           </div>
-           <span className="text-xs text-slate-300 line-clamp-2 w-full leading-relaxed">{msg.content || 'Sent an attachment'}</span>
-        </div>, {
-        icon: icon,
-        style: { borderRadius: '16px', background: '#111b21', color: '#fff', padding: '14px 16px', borderLeft: `5px solid ${borderColor}`, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', maxWidth: '100%' },
-        duration: 6000
-      });
-    });
-
     return () => {
       socket.off('new_lead');
       socket.off('new_client');
-      socket.off('new_message');
       socket.close();
     };
   }, [user]);

@@ -18,6 +18,9 @@ import {
   ClipboardDocumentIcon,
   EyeIcon,
   EyeSlashIcon,
+  SparklesIcon,
+  PaperAirplaneIcon,
+  CodeBracketIcon,
 } from '@heroicons/react/24/outline';
 
 const InstagramIcon = (props) => (
@@ -25,6 +28,15 @@ const InstagramIcon = (props) => (
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
     <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
     <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+  </svg>
+);
+
+const GoogleIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
   </svg>
 );
 
@@ -56,6 +68,9 @@ function FacebookTokenPanel() {
   const [tokenStatus, setTokenStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
+  const [testingLead, setTestingLead] = useState(false);
+  const [syncingHistorical, setSyncingHistorical] = useState(false);
   const [manualToken, setManualToken] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -96,7 +111,7 @@ function FacebookTokenPanel() {
     fetchStatus(); 
     fetchLogs();
     
-    // Poll logs every 10 seconds for real-time simulation
+    // Poll logs every 10 seconds for real-time feed
     const interval = setInterval(fetchLogs, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -133,6 +148,52 @@ function FacebookTokenPanel() {
     }
   };
 
+  const handleSubscribePage = async () => {
+    setSubscribing(true);
+    const tId = toast.loading('Subscribing Facebook Page to Lead Ads Webhooks...');
+    try {
+      const res = await api.post('/settings/facebook/subscribe-page');
+      toast.success(res.data.message || 'Page subscribed to Webhooks!', { id: tId });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Subscription failed', { id: tId });
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
+  const handleSendTestLead = async () => {
+    setTestingLead(true);
+    const tId = toast.loading('Sending simulated Meta Lead Ad to CRM pipeline...');
+    try {
+      await api.post('/settings/test-lead', { source: 'facebook' });
+      toast.success('🎉 Test Meta Lead sent! Check your Revenue Pipeline!', { id: tId });
+      fetchLogs();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Test lead failed', { id: tId });
+    } finally {
+      setTestingLead(false);
+    }
+  };
+
+  const handleSyncHistorical = async () => {
+    setSyncingHistorical(true);
+    const tId = toast.loading('Fetching all historical leads from Facebook Leadgen Forms...');
+    try {
+      const res = await api.post('/clients/sync-meta-leads');
+      const count = res.data.count || 0;
+      if (count > 0) {
+        toast.success(`🎉 Synced ${count} new leads from Meta!`, { id: tId });
+      } else {
+        toast.success('All leads from Meta forms are already up to date!', { id: tId });
+      }
+      fetchLogs();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Historical sync failed', { id: tId });
+    } finally {
+      setSyncingHistorical(false);
+    }
+  };
+
   const copyToClipboard = (text, type) => {
     navigator.clipboard.writeText(text);
     if (type === 'url') {
@@ -149,7 +210,6 @@ function FacebookTokenPanel() {
   const isExpiringSoon = tokenStatus?.status === 'expiring_soon';
   const isPermanent = tokenStatus?.neverExpires === true || tokenStatus?.expiresAt === 'Never Expires';
 
-  // Derive webhook tunnel/endpoint URL dynamically from backend location
   const derivedWebhookUrl = `${BACKEND_URL}/webhook/facebook`;
   const defaultVerifyToken = "manpreet";
 
@@ -178,7 +238,7 @@ function FacebookTokenPanel() {
                 {loading ? 'Checking token status...' :
                  isPermanent ? 'Permanent Page Token (Never Expires)' :
                  tokenStatus?.expiresAt ? `Expires: ${new Date(tokenStatus.expiresAt).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' })}` :
-                 tokenStatus?.message || 'No expiry info available'}
+                 tokenStatus?.message || 'Active Page Token'}
               </p>
             </div>
           </div>
@@ -207,7 +267,37 @@ function FacebookTokenPanel() {
         )}
       </div>
 
-      {/* Actions */}
+      {/* Quick Diagnostic & Action Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <button
+          onClick={handleSubscribePage}
+          disabled={subscribing}
+          className="p-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 hover:from-blue-700 hover:to-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          <SparklesIcon className="w-4 h-4" />
+          <span>{subscribing ? 'Subscribing...' : '1. Subscribe Page to Webhooks'}</span>
+        </button>
+
+        <button
+          onClick={handleSyncHistorical}
+          disabled={syncingHistorical}
+          className="p-3.5 bg-white border border-slate-200 hover:border-blue-400 text-slate-700 hover:text-blue-600 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          <ArrowPathIcon className={`w-4 h-4 ${syncingHistorical ? 'animate-spin' : ''}`} />
+          <span>{syncingHistorical ? 'Syncing...' : '2. Sync All Meta Leads'}</span>
+        </button>
+
+        <button
+          onClick={handleSendTestLead}
+          disabled={testingLead}
+          className="p-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          <PaperAirplaneIcon className="w-4 h-4" />
+          <span>{testingLead ? 'Sending...' : '3. Send Test Lead'}</span>
+        </button>
+      </div>
+
+      {/* Token Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Auto Refresh */}
         <div className="p-5 bg-white rounded-2xl border border-slate-200 space-y-3">
@@ -362,13 +452,13 @@ function FacebookTokenPanel() {
         </div>
 
         <div className="text-xs text-slate-400 leading-relaxed">
-          Displays the last 20 Facebook/Instagram/WhatsApp webhook events received by this server. Keep this screen open to debug arrivals instantly!
+          Displays the last 20 Facebook/Instagram/WhatsApp/Google/Website webhook events received by this server.
         </div>
 
         <div className="space-y-2.5 max-h-[250px] overflow-y-auto custom-scrollbar pr-1">
           {webhookLogs.length === 0 ? (
             <div className="text-center py-6 text-slate-500 text-xs font-semibold">
-              No webhook events logged yet. Trigger a Meta Ads test lead to see it arrive here instantly.
+              No webhook events logged yet. Trigger a test lead above to see it arrive here instantly.
             </div>
           ) : (
             webhookLogs.map((log) => {
@@ -400,7 +490,7 @@ function FacebookTokenPanel() {
                       </span>
                     </div>
                     <div className="text-[10px] text-slate-400">
-                      ID: <span className="font-mono text-slate-300">{log.eventId || 'None'}</span> · {new Date(log.processedAt).toLocaleTimeString()}
+                      ID: <span className="font-mono text-slate-300">{log.eventId || 'None'}</span> · {new Date(log.processedAt || log.createdAt).toLocaleTimeString()}
                     </div>
                     {log.errorMessage && (
                       <div className="text-[10px] text-red-400 font-semibold bg-red-950/20 px-2 py-0.5 rounded border border-red-900/30">
@@ -445,16 +535,154 @@ function FacebookTokenPanel() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* Instructions Link */}
-      <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-        <p className="text-xs font-bold text-blue-700 mb-2">💡 How to generate tokens & configure leads:</p>
-        <ol className="text-xs text-blue-600 space-y-1 list-decimal list-inside font-medium">
-          <li>Access the <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener noreferrer" className="underline">Meta Graph Explorer</a>.</li>
-          <li>Choose your App and Page from the drop-downs.</li>
-          <li>Select required scopes: <code className="bg-blue-100 px-1 rounded">pages_messaging, pages_read_engagement, pages_manage_metadata, leads_retrieval</code>.</li>
-          <li>Generate a User Token, paste it above, and our system will upgrade it to a **Permanent Page Token**.</li>
-        </ol>
+function GoogleAdsPanel() {
+  const [testing, setTesting] = useState(false);
+  const webhookUrl = `${BACKEND_URL}/webhook/google`;
+  const webhookKey = "manpreet_google_key";
+
+  const handleTestGoogleLead = async () => {
+    setTesting(true);
+    const tId = toast.loading('Sending test lead to Google Ads webhook...');
+    try {
+      await api.post('/settings/test-lead', { source: 'google' });
+      toast.success('🎉 Test Google Lead received! Check your Pipeline.', { id: tId });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Test failed', { id: tId });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const copy = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard');
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-5 bg-white rounded-2xl border border-slate-200 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-red-50 text-red-600">
+              <GoogleIcon className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-800 text-sm">Google Ads Lead Form Webhook</h4>
+              <p className="text-xs text-slate-500">Connect Google Ads Lead Form extensions directly to CRM</p>
+            </div>
+          </div>
+          <button
+            onClick={handleTestGoogleLead}
+            disabled={testing}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-200 active:scale-95"
+          >
+            {testing ? 'Sending...' : 'Send Test Google Lead'}
+          </button>
+        </div>
+
+        <div className="space-y-3 pt-2">
+          <div>
+            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Webhook URL</label>
+            <div className="flex gap-2">
+              <input readOnly type="text" value={webhookUrl} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-mono select-all focus:outline-none" />
+              <button onClick={() => copy(webhookUrl)} className="px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-all">Copy</button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Google Key (Webhook Key)</label>
+            <div className="flex gap-2">
+              <input readOnly type="text" value={webhookKey} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-mono select-all focus:outline-none" />
+              <button onClick={() => copy(webhookKey)} className="px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-all">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WebsiteLeadsPanel() {
+  const [testing, setTesting] = useState(false);
+  const webhookUrl = `${BACKEND_URL}/api/leads/public`;
+
+  const handleTestWebsiteLead = async () => {
+    setTesting(true);
+    const tId = toast.loading('Sending test lead to Website Webhook...');
+    try {
+      await api.post('/settings/test-lead', { source: 'website' });
+      toast.success('🎉 Test Website Lead received! Check your Pipeline.', { id: tId });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Test failed', { id: tId });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const copy = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard');
+  };
+
+  const sampleSnippet = `// Send Lead to CRM from your Website Form (JavaScript / HTML)
+fetch('${webhookUrl}', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    fullName: 'John Doe',
+    email: 'john@example.com',
+    phone: '+1 (555) 234-5678',
+    loanAmount: 650000,
+    propertyValue: 850000,
+    message: 'Interested in mortgage pre-approval',
+    source: 'website'
+  })
+})
+.then(res => res.json())
+.then(data => console.log('Lead saved:', data));`;
+
+  return (
+    <div className="space-y-6">
+      <div className="p-5 bg-white rounded-2xl border border-slate-200 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600">
+              <CodeBracketIcon className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-800 text-sm">Website &amp; Webhook API Endpoint</h4>
+              <p className="text-xs text-slate-500">Integrate WordPress, Webflow, Landing Pages, or Zapier</p>
+            </div>
+          </div>
+          <button
+            onClick={handleTestWebsiteLead}
+            disabled={testing}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-200 active:scale-95"
+          >
+            {testing ? 'Sending...' : 'Send Test Website Lead'}
+          </button>
+        </div>
+
+        <div className="space-y-3 pt-2">
+          <div>
+            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Public Endpoint URL (CORS Enabled)</label>
+            <div className="flex gap-2">
+              <input readOnly type="text" value={webhookUrl} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-mono select-all focus:outline-none" />
+              <button onClick={() => copy(webhookUrl)} className="px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-all">Copy</button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Example Code Snippet</label>
+            <pre className="bg-slate-900 text-emerald-400 p-4 rounded-xl text-[11px] font-mono overflow-auto max-h-[220px] select-all custom-scrollbar">
+              {sampleSnippet}
+            </pre>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -462,17 +690,35 @@ function FacebookTokenPanel() {
 
 export default function Settings() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('profile');
-  const [activeIntegration, setActiveIntegration] = useState(null);
+  const [activeTab, setActiveTab] = useState('integrations');
+  const [activeIntegration, setActiveIntegration] = useState('facebook');
 
   const integrations = [
     { 
-      name: 'Facebook Messenger', 
+      name: 'Facebook Lead Ads & Messenger', 
       platform: 'facebook', 
       icon: GlobeAltIcon, 
       color: 'text-blue-600', 
       bgColor: 'bg-blue-50',
-      description: 'Receive and reply to Facebook Page messages.',
+      description: 'Real-time Facebook Page & Instagram Lead Ads and Chat.',
+      hasPanel: true,
+    },
+    { 
+      name: 'Google Ads Webhook', 
+      platform: 'google', 
+      icon: GoogleIcon, 
+      color: 'text-red-600', 
+      bgColor: 'bg-red-50',
+      description: 'Receive Google Ads lead form extensions instantly.',
+      hasPanel: true,
+    },
+    { 
+      name: 'Website & Custom Forms API', 
+      platform: 'website', 
+      icon: CodeBracketIcon, 
+      color: 'text-indigo-600', 
+      bgColor: 'bg-indigo-50',
+      description: 'Connect WordPress, Webflow, landing pages, or Zapier webhooks.',
       hasPanel: true,
     },
     { 
@@ -487,19 +733,10 @@ export default function Settings() {
     { 
       name: 'WhatsApp Business', 
       platform: 'whatsapp', 
-      icon: DevicePhoneMobileIcon,
+      icon: DevicePhoneMobileIcon, 
       color: 'text-emerald-600', 
       bgColor: 'bg-emerald-50',
       description: 'Connect your WhatsApp Business API for official messaging.',
-      hasPanel: false,
-    },
-    { 
-      name: 'Email (SMTP/IMAP)', 
-      platform: 'email', 
-      icon: EnvelopeIcon, 
-      color: 'text-amber-600', 
-      bgColor: 'bg-amber-50',
-      description: 'Sync your professional email inbox.',
       hasPanel: false,
     }
   ];
@@ -508,22 +745,22 @@ export default function Settings() {
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 max-w-5xl mx-auto flex-1 overflow-y-auto">
       <div>
         <h2 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">System Settings</h2>
-        <p className="text-slate-500 mt-1 text-xs md:text-sm">Manage your CRM preferences and platform integrations.</p>
+        <p className="text-slate-500 mt-1 text-xs md:text-sm">Manage your CRM preferences and platform lead integrations.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-8">
         <div className="col-span-1 md:border-r md:border-slate-200 pb-2 md:pb-0 md:pr-8 flex flex-row md:flex-col overflow-x-auto no-scrollbar gap-2 shrink-0">
            <button 
+             onClick={() => { setActiveTab('integrations'); setActiveIntegration('facebook'); }}
+             className={`shrink-0 md:w-full text-left p-3 rounded-xl font-medium flex items-center gap-3 transition-all ${activeTab === 'integrations' ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'text-slate-600 hover:bg-slate-50'}`}
+           >
+              <GlobeAltIcon className="w-5 h-5" /> Integrations
+           </button>
+           <button 
              onClick={() => { setActiveTab('profile'); setActiveIntegration(null); }}
              className={`shrink-0 md:w-full text-left p-3 rounded-xl font-medium flex items-center gap-3 transition-all ${activeTab === 'profile' ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'text-slate-600 hover:bg-slate-50'}`}
            >
               <UserCircleIcon className="w-5 h-5" /> Profile
-           </button>
-           <button 
-             onClick={() => { setActiveTab('integrations'); setActiveIntegration(null); }}
-             className={`shrink-0 md:w-full text-left p-3 rounded-xl font-medium flex items-center gap-3 transition-all ${activeTab === 'integrations' ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'text-slate-600 hover:bg-slate-50'}`}
-           >
-              <GlobeAltIcon className="w-5 h-5" /> Integrations
            </button>
            <button 
              onClick={() => { setActiveTab('security'); setActiveIntegration(null); }}
@@ -582,8 +819,8 @@ export default function Settings() {
            {activeTab === 'integrations' && !activeIntegration && (
              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="space-y-1">
-                   <h3 className="text-xl font-bold text-slate-900">Platform Connections</h3>
-                   <p className="text-sm text-slate-500">Manage connections to external messaging and communication platforms.</p>
+                   <h3 className="text-xl font-bold text-slate-900">Lead &amp; Platform Connections</h3>
+                   <p className="text-sm text-slate-500">Manage connections to external lead generation platforms and webhooks.</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 pt-4">
@@ -605,22 +842,12 @@ export default function Settings() {
                                className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 px-3 py-1.5 rounded-lg hover:bg-blue-50 border border-blue-200 transition-all"
                              >
                                <KeyIcon className="w-3.5 h-3.5" />
-                               Manage Token
+                               Configure &amp; Test
                              </button>
                            )}
                         </div>
                      </div>
                    ))}
-                </div>
-                
-                <div className="bg-blue-600 p-6 rounded-2xl text-white flex items-center justify-between">
-                   <div className="space-y-1">
-                      <h4 className="font-bold">Need more integrations?</h4>
-                      <p className="text-xs text-blue-100 font-medium">Request custom API connectors for your business needs.</p>
-                   </div>
-                   <button className="bg-white text-blue-600 px-5 py-2.5 rounded-xl font-bold text-xs shadow-sm hover:bg-blue-50 transition-colors">
-                      Contact Support
-                   </button>
                 </div>
              </div>
            )}
@@ -635,11 +862,47 @@ export default function Settings() {
                    &larr;
                  </button>
                  <div>
-                   <h3 className="text-xl font-bold text-slate-900">Facebook Messenger</h3>
-                   <p className="text-sm text-slate-500">Manage your Meta Access Token and monitor real-time sync</p>
+                   <h3 className="text-xl font-bold text-slate-900">Facebook &amp; Meta Lead Ads</h3>
+                   <p className="text-sm text-slate-500">Manage your Meta Access Token, Webhook subscription, and monitor real-time lead sync</p>
                  </div>
                </div>
                <FacebookTokenPanel />
+             </div>
+           )}
+
+           {activeTab === 'integrations' && activeIntegration === 'google' && (
+             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+               <div className="flex items-center gap-3">
+                 <button
+                   onClick={() => setActiveIntegration(null)}
+                   className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all font-bold text-lg"
+                 >
+                   &larr;
+                 </button>
+                 <div>
+                   <h3 className="text-xl font-bold text-slate-900">Google Ads Webhook</h3>
+                   <p className="text-sm text-slate-500">Receive leads from Google Ads Lead Form extensions</p>
+                 </div>
+               </div>
+               <GoogleAdsPanel />
+             </div>
+           )}
+
+           {activeTab === 'integrations' && activeIntegration === 'website' && (
+             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+               <div className="flex items-center gap-3">
+                 <button
+                   onClick={() => setActiveIntegration(null)}
+                   className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all font-bold text-lg"
+                 >
+                   &larr;
+                 </button>
+                 <div>
+                   <h3 className="text-xl font-bold text-slate-900">Website &amp; Custom Form API</h3>
+                   <p className="text-sm text-slate-500">Embed leads from WordPress, Webflow, landing pages, or Zapier</p>
+                 </div>
+               </div>
+               <WebsiteLeadsPanel />
              </div>
            )}
 

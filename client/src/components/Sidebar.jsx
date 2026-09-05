@@ -1,26 +1,19 @@
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   HomeIcon,
-  InboxIcon,
   UserGroupIcon,
-  PhoneIcon,
-  EnvelopeIcon,
-  CalendarIcon,
   Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
-  PaperAirplaneIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
-  { name: 'Leads', href: '/leads', icon: UserGroupIcon },
-  { name: 'Emails', href: '/emails', icon: EnvelopeIcon },
-  { name: 'Inbox', href: '/inbox', icon: InboxIcon },
-  { name: 'Sent', href: '/sent', icon: PaperAirplaneIcon },
+  { name: 'Leads Pipeline', href: '/leads', icon: UserGroupIcon },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];
-
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -30,17 +23,33 @@ export default function Sidebar({ onClose }) {
   const { pathname } = useLocation();
   const { user, logout } = useAuth();
 
+  const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'M';
+  const userName = user?.name || 'Manpreet Singh';
+
   return (
-    <div className="flex grow flex-col gap-y-6 overflow-y-auto border-r border-slate-200 bg-white px-6 pb-6 shadow-sm">
-      <div className="flex h-20 shrink-0 items-center justify-center border-b border-slate-100">
-        <h1 className="text-xl font-bold text-slate-800 tracking-wide">
-          Manpreet
-        </h1>
+    <div className="flex w-64 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white h-full">
+      {/* Brand Header */}
+      <div className="flex h-16 shrink-0 items-center px-6">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-md bg-indigo-600 flex items-center justify-center shadow-sm">
+            <SparklesIcon className="w-3.5 h-3.5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-[14px] font-bold text-slate-900 tracking-tight leading-none">
+              Manpreet CRM
+            </h1>
+          </div>
+        </div>
       </div>
-      <nav className="flex flex-1 flex-col mt-4">
-        <ul role="list" className="flex flex-1 flex-col gap-y-7">
+
+      {/* Navigation Links */}
+      <nav className="flex flex-1 flex-col mt-4 px-3">
+        <ul role="list" className="flex flex-1 flex-col gap-y-6">
           <li>
-            <ul role="list" className="space-y-1">
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-2">
+              Main Menu
+            </div>
+            <ul role="list" className="space-y-0.5">
               {navigation.map((item) => {
                 const isActive = item.href === '/' ? pathname === item.href : pathname.startsWith(item.href);
                 return (
@@ -50,19 +59,22 @@ export default function Sidebar({ onClose }) {
                       onClick={() => onClose && onClose()}
                       className={classNames(
                         isActive
-                          ? 'bg-blue-50 text-blue-700 font-medium'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
-                        'group flex gap-x-4 rounded-lg p-3 text-sm font-medium transition-all duration-200'
+                          ? 'bg-indigo-50/50 text-indigo-700 font-semibold'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium',
+                        'group relative flex items-center gap-x-3 rounded-md px-3 py-2 text-[13px] transition-colors'
                       )}
                     >
+                      {isActive && (
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-indigo-600" />
+                      )}
                       <item.icon
                         className={classNames(
-                          isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600',
-                          'h-5 w-5 shrink-0 transition-colors duration-200'
+                          isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600',
+                          'h-4 w-4 shrink-0'
                         )}
                         aria-hidden="true"
                       />
-                      {item.name}
+                      <span>{item.name}</span>
                     </Link>
                   </li>
                 );
@@ -70,25 +82,26 @@ export default function Sidebar({ onClose }) {
             </ul>
           </li>
 
-          <li className="mt-auto pt-6 border-t border-slate-100">
-            <div className="flex flex-col gap-4">
-               <div className="flex items-center gap-x-3 px-2 py-3 bg-white hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group">
-                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
-                    {user?.name?.charAt(0) || 'A'}
-                  </div>
-                  <div className="flex-1 overflow-hidden">
-                    <p className="text-sm font-medium text-slate-800 truncate">{user?.name || 'Agent'}</p>
-                    <p className="text-xs text-slate-500 truncate">Principal Broker</p>
-                  </div>
-               </div>
-               
-               <button
-                  onClick={logout}
-                  className="flex items-center justify-center gap-2 w-full p-2.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all text-sm font-medium"
-                >
-                  <ArrowLeftOnRectangleIcon className="w-5 h-5" />
-                  Sign Out
-               </button>
+          {/* User Profile Card & Logout */}
+          <li className="mt-auto pb-4 px-1">
+            <div className="flex flex-col gap-1 border-t border-slate-100 pt-4 px-2">
+              <div className="flex items-center gap-x-3 py-2">
+                <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-xs shrink-0">
+                  {userInitial}
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <p className="text-[13px] font-semibold text-slate-900 truncate">{userName}</p>
+                  <p className="text-[11px] text-slate-500 truncate">Administrator</p>
+                </div>
+              </div>
+
+              <button
+                onClick={logout}
+                className="flex items-center gap-3 px-2 py-1.5 rounded-md text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors text-[12px] font-medium w-full text-left mt-1"
+              >
+                <ArrowLeftOnRectangleIcon className="w-4 h-4 shrink-0 text-slate-400" />
+                Sign Out
+              </button>
             </div>
           </li>
         </ul>

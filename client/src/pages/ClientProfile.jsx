@@ -13,7 +13,10 @@ import {
   ArrowUpTrayIcon,
   XMarkIcon,
   CheckCircleIcon,
-  ClockIcon
+  ClockIcon,
+  ArrowLeftIcon,
+  ChevronDownIcon,
+  BriefcaseIcon
 } from '@heroicons/react/24/outline';
 
 export default function ClientProfile() {
@@ -23,6 +26,13 @@ export default function ClientProfile() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('notes');
   const [newNote, setNewNote] = useState('');
+
+  const getInitials = (name) => {
+    if (!name) return 'L';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return parts[0].substring(0, 2).toUpperCase();
+  };
   
   // Modals state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -114,200 +124,215 @@ export default function ClientProfile() {
   if (!client) return <div className="p-8 text-red-500">Client not found</div>;
 
   return (
-    <div className="flex h-full flex-col bg-slate-50 overflow-hidden">
-      {/* Header Profile Info */}
-      <div className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 md:py-6 shadow-sm flex-shrink-0 animate-in fade-in slide-in-from-top duration-300">
-         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-start gap-4 md:gap-6">
-            <div className="flex flex-col xs:flex-row gap-4 xs:gap-6 items-start xs:items-center">
-               <div className="h-16 w-16 sm:h-24 sm:w-24 bg-gradient-to-tr from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center text-white text-2xl sm:text-4xl font-extrabold shadow-lg transform -rotate-2 shrink-0">
-                  {client.fullName.charAt(0)}
-               </div>
-               <div className="min-w-0">
-                  <h1 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight truncate">{client.fullName}</h1>
-                  <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2 sm:mt-3 text-xs sm:text-sm font-medium text-slate-600">
-                     <span className="flex items-center gap-1.5 min-w-0 truncate"><EnvelopeIcon className="w-4 h-4 text-slate-400 shrink-0"/> <span className="truncate">{client.email || 'No email established'}</span></span>
-                     <span className="flex items-center gap-1.5 shrink-0"><PhoneIcon className="w-4 h-4 text-slate-400 shrink-0"/> {client.phone || 'No phone established'}</span>
-                     <span className="flex items-center gap-1.5 capitalize px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold border border-blue-100 uppercase tracking-tighter shrink-0">
-                        {client.stage.replace('_', ' ')}
-                     </span>
-                  </div>
-               </div>
+    <div className="flex flex-col h-screen bg-[#f8fafc] overflow-hidden">
+      {/* Top Navigation / Action Header */}
+      <div className="px-6 py-4 bg-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-30 shrink-0 shadow-sm">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => navigate('/leads')}
+            className="flex items-center gap-1.5 text-slate-500 hover:text-slate-900 transition-colors text-[13px] font-medium px-2 py-1 -ml-2 rounded-lg hover:bg-slate-100"
+          >
+            <ArrowLeftIcon className="w-4 h-4" />
+            Back to Leads
+          </button>
+          <div className="hidden sm:block w-[1px] h-6 bg-slate-200"></div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 font-semibold flex items-center justify-center text-[13px] ring-1 ring-slate-200/50">
+              {getInitials(client.fullName)}
             </div>
-            <div className="flex gap-3 w-full sm:w-auto">
-               <button 
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="flex-1 sm:flex-none justify-center px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-2"
-               >
-                  <PencilSquareIcon className="w-4 h-4" /> Edit Profile
-               </button>
-               <button 
-                  onClick={() => navigate('/inbox')}
-                  className="flex-1 sm:flex-none justify-center px-4 py-2.5 bg-slate-900 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white hover:bg-slate-800 transition-all flex items-center gap-2"
-               >
-                  <ChatBubbleLeftRightIcon className="w-4 h-4" /> Message
-               </button>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <h1 className="text-[18px] font-bold text-slate-900 tracking-tight leading-none">{client.fullName}</h1>
+                <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-100 uppercase tracking-wide">
+                  {client.stage.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-[12px] text-slate-500 mt-1">
+                <span className="flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" /> {client.email || 'No email'}</span>
+                <span className="flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" /> {client.phone || 'No phone'}</span>
+              </div>
             </div>
-         </div>
-         
-         <div className="flex gap-6 sm:gap-8 mt-6 sm:mt-10 border-b border-slate-100">
-             {['notes', 'calls', 'documents'].map(tab => (
-                 <button 
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`pb-3 text-xs font-black transition-all capitalize tracking-widest ${activeTab === tab ? 'border-b-4 border-blue-600 text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
-                 >
-                    {tab}
-                 </button>
-             ))}
-         </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsEditModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all"
+          >
+            <PencilSquareIcon className="w-4 h-4 text-slate-400" />
+            Edit Profile
+          </button>
+          
+          <button 
+            onClick={() => toast.success('Message feature coming soon!')}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg font-bold text-[13px] shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-all"
+          >
+            <ChatBubbleLeftRightIcon className="w-4 h-4" />
+            Message
+          </button>
+        </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-8 max-w-6xl w-full mx-auto pb-20">
-         {activeTab === 'notes' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-                {/* Meta Ads Lead Capture Card */}
-                {client.source === 'facebook' && client.metaData && (client.metaData.campaignName || client.metaData.formName || (client.metaData.customFields && Object.keys(client.metaData.customFields).length > 0)) && (
-                   <div className="bg-gradient-to-br from-blue-50/80 to-indigo-50/40 rounded-2xl border border-blue-100/70 p-6 shadow-sm animate-in zoom-in duration-300 relative overflow-hidden">
-                      {/* Premium decorative accent */}
-                      <div className="absolute right-0 top-0 w-24 h-24 bg-gradient-to-bl from-blue-500/10 to-indigo-500/0 rounded-bl-full pointer-events-none"></div>
-                      
-                      <div className="flex items-center gap-3 border-b border-blue-100/50 pb-4 mb-4">
-                         <div className="p-2 rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/20">
-                            <ChatBubbleLeftRightIcon className="w-5 h-5" />
-                         </div>
-                         <div>
-                            <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider">Meta Ads Lead Capture</h3>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Sourced from Facebook Lead Ads</p>
-                         </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <div className="space-y-3">
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Campaign context</h4>
-                            <div className="space-y-2.5">
-                               <div className="flex justify-between items-center text-sm font-medium">
-                                  <span className="text-slate-500 text-xs">Campaign:</span>
-                                  <span className="font-bold text-slate-800 bg-white px-2.5 py-1 rounded-lg border border-slate-100 shadow-sm text-xs truncate max-w-[200px]">{client.metaData.campaignName || 'N/A'}</span>
-                               </div>
-                               <div className="flex justify-between items-center text-sm font-medium">
-                                  <span className="text-slate-500 text-xs">Ad Name:</span>
-                                  <span className="font-bold text-slate-800 bg-white px-2.5 py-1 rounded-lg border border-slate-100 shadow-sm text-xs truncate max-w-[200px]">{client.metaData.adName || 'N/A'}</span>
-                               </div>
-                               <div className="flex justify-between items-center text-sm font-medium">
-                                  <span className="text-slate-500 text-xs">Form Name:</span>
-                                  <span className="font-bold text-slate-800 bg-white px-2.5 py-1 rounded-lg border border-slate-100 shadow-sm text-xs truncate max-w-[200px]">{client.metaData.formName || 'N/A'}</span>
-                               </div>
-                            </div>
-                         </div>
-                         
-                         {client.metaData.customFields && Object.keys(client.metaData.customFields).length > 0 && (
-                            <div className="space-y-3">
-                               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Form Questionnaire Responses</h4>
-                               <div className="space-y-2.5 bg-white/70 backdrop-blur-sm p-4 rounded-xl border border-blue-100/50 shadow-sm max-h-[160px] overflow-y-auto custom-scrollbar">
-                                  {Object.entries(client.metaData.customFields).map(([key, val]) => (
-                                     <div key={key} className="flex flex-col gap-0.5 border-b border-slate-100 pb-2 last:border-b-0 last:pb-0 last:mb-0">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">{key.replace(/_/g, ' ')}</span>
-                                        <span className="text-xs font-bold text-slate-700 leading-tight">{val || 'No answer'}</span>
-                                     </div>
-                                  ))}
-                               </div>
-                            </div>
-                         )}
-                      </div>
-                   </div>
-                )}
-
-                <form onSubmit={addNote} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-blue-600 transition-all">
-                    <textarea 
-                       className="w-full resize-none border-0 p-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 sm:text-sm sm:leading-6 font-medium"
-                       rows={4}
-                       placeholder="Write a private note about this client..."
-                       value={newNote}
-                       onChange={e => setNewNote(e.target.value)}
-                    />
-                    <div className="mt-3 flex justify-end">
-                       <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-blue-500 shadow-sm transition-all hover:-translate-y-0.5">Save Note</button>
-                    </div>
-                </form>
-
-                <div className="space-y-4">
-                   {client.notes.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).map((note, i) => (
-                      <div key={i} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
-                         <div className="flex justify-between items-center mb-3">
-                             <div className="flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-sm font-black text-slate-700">
-                                   {note.createdBy?.name?.charAt(0) || 'A'}
-                                </div>
-                                <span className="text-sm font-bold text-slate-900">{note.createdBy?.name || 'Agent'}</span>
-                             </div>
-                             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter">{format(new Date(note.createdAt), 'MMM d • h:mm a')}</span>
-                         </div>
-                         <p className="text-sm text-slate-700 leading-relaxed font-medium">{note.content}</p>
-                      </div>
-                   ))}
-                   {client.notes.length === 0 && <p className="text-center text-slate-400 font-bold py-10 uppercase text-xs tracking-widest">No history recorded yet</p>}
+      {/* Main Content Area (70/30 Grid) */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="max-w-7xl mx-auto p-6 flex flex-col lg:flex-row gap-6">
+          
+          {/* Left Column (70%) */}
+          <div className="flex-1 flex flex-col gap-6">
+            
+            {/* Lead Information Panel */}
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-6">
+              <h2 className="text-[13px] font-bold text-slate-900 uppercase tracking-widest mb-4">Lead Information</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Full Name</span>
+                  <span className="text-[14px] font-medium text-slate-900">{client.fullName}</span>
                 </div>
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Email Address</span>
+                  <span className="text-[14px] font-medium text-slate-900">{client.email || '—'}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Phone Number</span>
+                  <span className="text-[14px] font-medium text-slate-900">{client.phone || '—'}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Pipeline Stage</span>
+                  <span className="text-[14px] font-medium text-slate-900 capitalize">{client.stage.replace('_', ' ')}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Lead Value</span>
+                  <span className="text-[14px] font-medium text-slate-900">
+                    {client.loanAmount ? `$${Number(client.loanAmount).toLocaleString()}` : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Created Date</span>
+                  <span className="text-[14px] font-medium text-slate-900">
+                    {client.createdAt ? format(new Date(client.createdAt), 'MMM d, yyyy') : '—'}
+                  </span>
+                </div>
+              </div>
             </div>
-         )}
-         
-         {activeTab === 'documents' && (
-             <div className="space-y-6 animate-in fade-in duration-300">
-                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-10 text-center relative overflow-hidden group">
-                     {/* Decorative circle */}
-                     <div className="absolute -right-10 -bottom-10 h-40 w-40 bg-blue-50 rounded-full opacity-50 group-hover:scale-125 transition-all duration-500"></div>
-                     
-                     <DocumentIcon className="w-16 h-16 text-blue-100 mx-auto mb-4 group-hover:text-blue-200 transition-colors" />
-                     <h3 className="text-xl font-black text-slate-900">Vault & Documentation</h3>
-                     <p className="text-sm text-slate-500 mt-2 mb-8 max-w-sm mx-auto font-medium">Securely store and manage sensitive documents, ID proofing, and financial statements.</p>
-                     
-                     <label className="cursor-pointer inline-flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-slate-800 shadow-lg transition-all hover:-translate-y-1 active:translate-y-0">
-                        <ArrowUpTrayIcon className="w-4 h-4" />
-                        Upload Selection
-                        <input type="file" className="hidden" onChange={handleFileUpload} />
-                     </label>
-                 </div>
 
-                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {client.documents?.map((doc, i) => (
-                       <div key={i} className="bg-white p-4 rounded-xl border border-slate-200 flex items-center gap-4 hover:border-blue-400 transition-all cursor-pointer">
-                          <div className="h-10 w-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">
-                             <DocumentIcon className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                             <p className="text-sm font-bold text-slate-900 truncate">{doc.originalName}</p>
-                             <p className="text-[10px] text-slate-400 uppercase font-black tracking-tighter">{(doc.size / 1024).toFixed(1)} KB • {doc.mimetype.split('/')[1]}</p>
-                          </div>
+            {/* Notes & Activity Section */}
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-6 flex-1">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-[13px] font-bold text-slate-900 uppercase tracking-widest">Notes & Activity</h2>
+              </div>
+              
+              <form onSubmit={addNote} className="mb-8">
+                <div className="relative">
+                  <input 
+                     type="text"
+                     className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2.5 pl-4 pr-24 text-[13px] font-medium focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-400 outline-none transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                     placeholder="Add a note about this lead..."
+                     value={newNote}
+                     onChange={e => setNewNote(e.target.value)}
+                  />
+                  <button type="submit" disabled={!newNote.trim()} className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:opacity-50 disabled:hover:bg-slate-200 rounded-md text-[12px] font-bold transition-all">
+                    Post
+                  </button>
+                </div>
+              </form>
+
+              <div className="space-y-6 relative before:absolute before:inset-0 before:ml-4 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
+                 {client.notes.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).map((note, i) => (
+                    <div key={i} className="relative flex items-start gap-4 mb-4">
+                       <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex flex-shrink-0 items-center justify-center text-[10px] font-bold text-indigo-700 z-10 shadow-sm mt-0.5">
+                          {note.createdBy?.name?.charAt(0) || 'A'}
                        </div>
-                    ))}
-                 </div>
-             </div>
-         )}
+                       <div className="flex-1 bg-white border border-slate-100 rounded-lg p-3.5 shadow-sm">
+                          <div className="flex items-center justify-between mb-1.5">
+                             <span className="text-[12px] font-bold text-slate-900">{note.createdBy?.name || 'Agent'}</span>
+                             <span className="text-[11px] font-medium text-slate-400">{format(new Date(note.createdAt), 'MMM d, h:mm a')}</span>
+                          </div>
+                          <p className="text-[13px] text-slate-600 font-medium leading-relaxed">{note.content}</p>
+                       </div>
+                    </div>
+                 ))}
+                 {client.notes.length === 0 && (
+                    <div className="text-center py-6 relative z-10">
+                      <p className="text-[12px] text-slate-400 font-medium">No activity recorded yet.</p>
+                    </div>
+                 )}
+              </div>
+            </div>
+            
+          </div>
+          
+          {/* Right Column (30%) */}
+          <div className="w-full lg:w-80 flex flex-col gap-6 shrink-0">
+            
+            {/* Status Summary */}
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-5">
+              <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Status Overview</h3>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[13px] font-medium text-slate-600">Current Stage</span>
+                <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[11px] font-bold capitalize">
+                  {client.stage.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[13px] font-medium text-slate-600">Assigned To</span>
+                <span className="text-[13px] font-bold text-slate-900">
+                  {client.assignedTo?.name || 'Unassigned'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] font-medium text-slate-600">Next Action</span>
+                <span className="text-[12px] font-medium text-slate-400 italic">No follow-up</span>
+              </div>
+              
+              <button 
+                onClick={() => setIsCallModalOpen(true)}
+                className="w-full mt-5 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all"
+              >
+                <ClockIcon className="w-4 h-4" />
+                Log Interaction
+              </button>
+            </div>
 
-         {activeTab === 'calls' && (
-             <div className="space-y-6 animate-in fade-in duration-300">
-                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-10 text-center relative overflow-hidden group">
-                     {/* Decorative circle */}
-                     <div className="absolute -left-10 -bottom-10 h-40 w-40 bg-emerald-50 rounded-full opacity-50 group-hover:scale-125 transition-all duration-500"></div>
-                     
-                     <PhoneIcon className="w-16 h-16 text-emerald-100 mx-auto mb-4 group-hover:text-emerald-200 transition-colors" />
-                     <h3 className="text-xl font-black text-slate-900">Communication Logs</h3>
-                     <p className="text-sm text-slate-500 mt-2 mb-8 max-w-sm mx-auto font-medium">Review interaction history and record manual client touchpoints.</p>
-                     
-                     <button 
-                        onClick={() => setIsCallModalOpen(true)}
-                        className="inline-flex items-center gap-2 bg-white border-2 border-slate-900 text-slate-900 px-6 py-3 rounded-xl font-black text-sm hover:bg-slate-900 hover:text-white transition-all shadow-sm"
-                     >
-                        <ClockIcon className="w-4 h-4" />
-                        Log Manual Interaction
-                     </button>
-                 </div>
-                 
-                 <div className="text-center py-10">
-                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Interaction history is strictly auditable</p>
-                 </div>
-             </div>
-         )}
+            {/* Meta Ads Lead Data */}
+            {client.source === 'facebook' && (
+              <div className="bg-white rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center text-blue-600">
+                    <BriefcaseIcon className="w-3.5 h-3.5" />
+                  </div>
+                  <h3 className="text-[11px] font-bold text-slate-900 uppercase tracking-widest">Lead Source: Meta Ads</h3>
+                </div>
+                
+                <div className="space-y-3 mb-4">
+                   <div className="flex flex-col">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Campaign Name</span>
+                      <span className="text-[12px] font-medium text-slate-800 break-words">{client.metaData?.campaignName || 'Unknown Campaign'}</span>
+                   </div>
+                   <div className="flex flex-col">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Form Name</span>
+                      <span className="text-[12px] font-medium text-slate-800 break-words">{client.metaData?.formName || 'Unknown Form'}</span>
+                   </div>
+                </div>
+
+                {client.metaData?.customFields && Object.keys(client.metaData.customFields).length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-slate-100">
+                     <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Form Responses</h4>
+                     <div className="space-y-3">
+                        {Object.entries(client.metaData.customFields).map(([key, val]) => (
+                           <div key={key} className="flex flex-col gap-0.5">
+                              <span className="text-[10px] font-medium text-slate-500">{key.replace(/_/g, ' ')}</span>
+                              <span className="text-[12px] font-semibold text-slate-800 leading-snug">{val || '—'}</span>
+                           </div>
+                        ))}
+                     </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+          </div>
+        </div>
       </div>
 
       {/* Edit Profile Modal */}

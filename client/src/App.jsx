@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
@@ -6,14 +6,9 @@ import Layout from './components/Layout';
 // Pages
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Inbox from './pages/Inbox';
 import Leads from './pages/Leads';
 import ClientProfile from './pages/ClientProfile';
-import Calls from './pages/Calls';
-import Emails from './pages/Emails';
 import Settings from './pages/Settings';
-import Sent from './pages/Sent';
-
 
 function App() {
   const pathname = window.location.pathname;
@@ -28,13 +23,14 @@ function App() {
           <Route element={<Layout />}>
              <Route path="/" element={<Dashboard />} />
              <Route path="/dashboard" element={<Dashboard />} />
-             <Route path="/inbox" element={<Inbox />} />
              <Route path="/leads" element={<Leads />} />
              <Route path="/clients/:id" element={<ClientProfile />} />
-             <Route path="/calls" element={<Calls />} />
-             <Route path="/emails" element={<Emails />} />
              <Route path="/settings" element={<Settings />} /> 
-             <Route path="/sent" element={<Sent />} /> 
+             {/* Redirect any legacy inbox/sent/emails to leads */}
+             <Route path="/inbox" element={<Navigate to="/leads" replace />} />
+             <Route path="/sent" element={<Navigate to="/leads" replace />} />
+             <Route path="/emails" element={<Navigate to="/leads" replace />} />
+             <Route path="*" element={<Navigate to="/leads" replace />} />
           </Route>
         </Routes>
       </AuthProvider>
