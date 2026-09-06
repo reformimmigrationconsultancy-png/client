@@ -12,6 +12,7 @@ import Settings from './pages/Settings';
 import Automations from './pages/Automations';
 import AutomationBuilder from './pages/AutomationBuilder';
 import EmailTemplates from './pages/EmailTemplates';
+import EmailTemplateEditor from './pages/EmailTemplateEditor';
 import FollowUps from './pages/FollowUps';
 
 function App() {
@@ -34,6 +35,8 @@ function App() {
              <Route path="/automations/new" element={<AutomationBuilder />} />
              <Route path="/automations/:id/edit" element={<AutomationBuilder />} />
              <Route path="/templates" element={<EmailTemplates />} />
+             <Route path="/templates/new" element={<EmailTemplateEditor />} />
+             <Route path="/templates/:id/edit" element={<EmailTemplateEditor />} />
              <Route path="/followups" element={<FollowUps />} />
              {/* Redirect any legacy inbox/sent/emails to leads */}
              <Route path="/inbox" element={<Navigate to="/leads" replace />} />
