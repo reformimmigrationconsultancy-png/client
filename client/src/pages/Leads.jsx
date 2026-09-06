@@ -241,14 +241,6 @@ export default function Leads() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setIsClearModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-all" 
-            title="Reset Pipeline & Clear All Old Leads"
-          >
-            <TrashIcon className="w-4 h-4" />
-            <span>Reset All Leads</span>
-          </button>
         </div>
       </div>
 
