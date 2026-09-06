@@ -16,7 +16,8 @@ import {
   ClockIcon,
   ArrowLeftIcon,
   ChevronDownIcon,
-  BriefcaseIcon
+  BriefcaseIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 
 export default function ClientProfile() {
@@ -131,6 +132,15 @@ export default function ClientProfile() {
       console.error(err);
       toast.error('Failed to log call');
     }
+  const handleDeleteClient = async () => {
+    if (!window.confirm(`Are you sure you want to permanently delete lead '${client.fullName}'?`)) return;
+    try {
+      await api.delete(`/clients/${id}`);
+      toast.success(`Lead '${client.fullName}' deleted`);
+      navigate('/leads');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete lead');
+    }
   };
 
   if (loading) return <div className="p-8 text-slate-500 font-medium">Loading profile...</div>;
@@ -183,6 +193,15 @@ export default function ClientProfile() {
           >
             <PencilSquareIcon className="w-4 h-4 text-slate-400" />
             Edit Profile
+          </button>
+
+          <button 
+            onClick={handleDeleteClient}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 rounded-lg text-[13px] font-semibold transition-all"
+            title="Delete Lead"
+          >
+            <TrashIcon className="w-4 h-4 text-rose-500" />
+            Delete Lead
           </button>
           
           <button 

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useNavigate } from 'react-router-dom';
 import api, { BACKEND_URL } from '../utils/api';
 import { toast } from 'react-hot-toast';
@@ -10,22 +9,12 @@ import {
   MagnifyingGlassIcon, 
   ArrowPathIcon, 
   UserGroupIcon, 
-  CurrencyDollarIcon, 
   FireIcon, 
   TrashIcon, 
   ExclamationTriangleIcon,
-  Squares2X2Icon,
-  ViewColumnsIcon,
-  TableCellsIcon,
-  PhoneIcon,
-  EnvelopeIcon,
-  SparklesIcon,
-  CheckBadgeIcon,
-  ClockIcon,
-  TagIcon,
   ChevronDownIcon
 } from '@heroicons/react/24/outline';
-import { ChatBubbleLeftRightIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/solid';
+import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/solid';
 import io from 'socket.io-client';
 
 const STAGES = {
@@ -52,8 +41,17 @@ export default function Leads() {
   const [loading, setLoading] = useState(true);
   const [activeStageFilter, setActiveStageFilter] = useState('all');
   const [isSyncingMeta, setIsSyncingMeta] = useState(false);
+  
+  // Bulk & Single Delete States
+  const [selectedLeadIds, setSelectedLeadIds] = useState([]);
+  const [leadToDelete, setLeadToDelete] = useState(null); // Single lead deletion target
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isDeletingSingle, setIsDeletingSingle] = useState(false);
+
+  // Clear Pipeline Modal
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+
   const [socket, setSocket] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -130,6 +128,42 @@ export default function Leads() {
     }
   };
 
+  // Delete Single Lead
+  const handleDeleteSingleLead = async () => {
+    if (!leadToDelete) return;
+    setIsDeletingSingle(true);
+    try {
+      await api.delete(`/clients/${leadToDelete._id}`);
+      toast.success(`Deleted lead '${leadToDelete.fullName}'`);
+      setLeadToDelete(null);
+      setSelectedLeadIds(prev => prev.filter(id => id !== leadToDelete._id));
+      fetchLeads();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete lead');
+    } finally {
+      setIsDeletingSingle(false);
+    }
+  };
+
+  // Bulk Delete Selected Leads
+  const handleBulkDeleteLeads = async () => {
+    if (selectedLeadIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedLeadIds.length} selected lead(s)?`)) return;
+
+    setIsBulkDeleting(true);
+    const tId = toast.loading(`Deleting ${selectedLeadIds.length} selected lead(s)...`);
+    try {
+      const res = await api.post('/clients/bulk-delete', { ids: selectedLeadIds });
+      toast.success(res.data.message || `Deleted ${selectedLeadIds.length} leads successfully!`, { id: tId });
+      setSelectedLeadIds([]);
+      fetchLeads();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete selected leads', { id: tId });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const handleClearAllLeads = async () => {
     setIsClearing(true);
     const tId = toast.loading('Wiping all leads and resetting pipeline...');
@@ -137,50 +171,12 @@ export default function Leads() {
       const res = await api.post('/clients/clear-all-leads');
       toast.success(res.data.message || 'All old leads deleted successfully!', { id: tId });
       setIsClearModalOpen(false);
+      setSelectedLeadIds([]);
       fetchLeads();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to clear leads', { id: tId });
     } finally {
       setIsClearing(false);
-    }
-  };
-
-  const handleUpdateStage = async (leadId, newStage, e) => {
-    if (e) e.stopPropagation();
-    try {
-      await api.put(`/clients/${leadId}`, { stage: newStage });
-      toast.success(`Stage updated to ${STAGES[newStage]?.title || newStage}`);
-      fetchLeads();
-    } catch (err) {
-      toast.error('Failed to update stage');
-    }
-  };
-
-  const onDragEnd = async (result) => {
-    if (!result.destination) return;
-    const { source, destination } = result;
-
-    if (source.droppableId !== destination.droppableId) {
-      const sourceCol = columns[source.droppableId];
-      const destCol = columns[destination.droppableId];
-      const sourceItems = [...sourceCol.items];
-      const destItems = [...destCol.items];
-      const [movedItem] = sourceItems.splice(source.index, 1);
-      movedItem.stage = destination.droppableId;
-      destItems.splice(destination.index, 0, movedItem);
-      
-      setColumns({
-        ...columns,
-        [source.droppableId]: { ...sourceCol, items: sourceItems },
-        [destination.droppableId]: { ...destCol, items: destItems }
-      });
-
-      try {
-        await api.put(`/clients/${movedItem._id}`, { stage: destination.droppableId });
-      } catch (err) {
-        toast.error('Update failed. Refreshing...');
-        fetchLeads();
-      }
     }
   };
 
@@ -201,22 +197,23 @@ export default function Leads() {
     return list;
   }, [allLeads, activeStageFilter, searchQuery]);
 
-  const filteredColumns = useMemo(() => {
-    if (!searchQuery) return columns;
-    const search = searchQuery.toLowerCase();
-    const newCols = {};
-    Object.keys(columns).forEach(key => {
-      newCols[key] = {
-        ...columns[key],
-        items: columns[key].items.filter(item => 
-          item.fullName.toLowerCase().includes(search) || 
-          item.email?.toLowerCase().includes(search) ||
-          item.phone?.includes(search)
-        )
-      };
-    });
-    return newCols;
-  }, [columns, searchQuery]);
+  // Checkbox helpers
+  const isAllSelected = filteredLeads.length > 0 && selectedLeadIds.length === filteredLeads.length;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedLeadIds([]);
+    } else {
+      setSelectedLeadIds(filteredLeads.map(l => l._id));
+    }
+  };
+
+  const toggleSelectLead = (id, e) => {
+    if (e) e.stopPropagation();
+    setSelectedLeadIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
 
   if (loading) return (
     <div className="flex h-full items-center justify-center bg-slate-50">
@@ -230,7 +227,7 @@ export default function Leads() {
   return (
     <div className="flex flex-col h-screen bg-[#f8fafc] overflow-hidden">
       {/* Compact Top Header */}
-      <div className="px-6 py-5 bg-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-30 shrink-0">
+      <div className="px-6 py-4 bg-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-30 shrink-0">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-[20px] font-bold text-slate-900 tracking-tight">Leads Pipeline</h1>
@@ -239,17 +236,18 @@ export default function Leads() {
             </span>
           </div>
           <p className="text-slate-500 font-medium text-[13px] mt-1">
-            Manage and follow up with your incoming leads.
+            Manage, filter, and delete unwanted or test leads.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setIsClearModalOpen(true)}
-            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" 
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-all" 
             title="Reset Pipeline & Clear All Old Leads"
           >
-            <TrashIcon className="w-5 h-5" />
+            <TrashIcon className="w-4 h-4" />
+            <span>Reset All Leads</span>
           </button>
         </div>
       </div>
@@ -296,8 +294,21 @@ export default function Leads() {
           </div>
         </div>
 
-        {/* Right Toolbar: Actions */}
+        {/* Right Toolbar: Actions & Bulk Delete */}
         <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+          
+          {/* BULK DELETE BUTTON */}
+          {selectedLeadIds.length > 0 && (
+            <button
+              onClick={handleBulkDeleteLeads}
+              disabled={isBulkDeleting}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[13px] font-bold shadow-sm transition-all animate-fade-in"
+            >
+              <TrashIcon className="w-4 h-4" />
+              <span>Delete Selected ({selectedLeadIds.length})</span>
+            </button>
+          )}
+
           <button onClick={fetchLeads} className="p-1.5 text-slate-400 hover:text-slate-900 transition-colors" title="Refresh">
             <ArrowPathIcon className="w-4 h-4" />
           </button>
@@ -321,31 +332,34 @@ export default function Leads() {
         </div>
       </div>
 
-
-
       {/* MAIN VIEW CONTENT AREA */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-        {/* ========================================================================= */}
-        {/* TABLE LIST VIEW                                                        */}
-        {/* ========================================================================= */}
         <div className="bg-white rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100/80 text-[11px] font-semibold uppercase text-slate-400 tracking-wider">
-                  <th className="py-3 px-6 w-1/4">Lead</th>
-                  <th className="py-3 px-6 w-1/5">Contact</th>
-                  <th className="py-3 px-6 w-1/5">Source</th>
-                  <th className="py-3 px-6">Value</th>
-                  <th className="py-3 px-6">Stage</th>
-                  <th className="py-3 px-6">Created</th>
-                  <th className="py-3 px-6 text-right w-16"></th>
+                  <th className="py-3 px-4 w-10 text-center">
+                    <input 
+                      type="checkbox"
+                      checked={isAllSelected}
+                      onChange={toggleSelectAll}
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                  </th>
+                  <th className="py-3 px-4 w-1/4">Lead</th>
+                  <th className="py-3 px-4 w-1/5">Contact</th>
+                  <th className="py-3 px-4 w-1/5">Source</th>
+                  <th className="py-3 px-4">Value</th>
+                  <th className="py-3 px-4">Stage</th>
+                  <th className="py-3 px-4">Created</th>
+                  <th className="py-3 px-4 text-right w-24">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/80 text-[13px] text-slate-700">
                 {filteredLeads.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="py-20 text-center">
+                    <td colSpan="8" className="py-20 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <div className="w-14 h-14 bg-slate-50 border border-slate-100 text-slate-400 rounded-full flex items-center justify-center mb-4">
                           <UserGroupIcon className="w-6 h-6" />
@@ -366,34 +380,46 @@ export default function Leads() {
                 ) : (
                   filteredLeads.map((item) => {
                     const stage = STAGES[item.stage] || STAGES.new_lead;
+                    const isSelected = selectedLeadIds.includes(item._id);
+
                     return (
                       <tr 
                         key={item._id}
                         onClick={() => navigate(`/clients/${item._id}`)}
-                        className="hover:bg-slate-50/60 cursor-pointer transition-colors group h-[64px]"
+                        className={`hover:bg-slate-50/80 cursor-pointer transition-colors group h-[64px] ${isSelected ? 'bg-indigo-50/40' : ''}`}
                       >
+                        {/* CHECKBOX */}
+                        <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => toggleSelectLead(item._id, e)}
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </td>
+
                         {/* LEAD */}
-                        <td className="py-3 px-6 whitespace-nowrap">
+                        <td className="py-3 px-4 whitespace-nowrap">
                           <div className="flex items-center gap-3.5">
                             <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 font-semibold flex items-center justify-center text-[12px] shrink-0 ring-1 ring-slate-200/50">
                               {getInitials(item.fullName)}
                             </div>
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-[14px] text-slate-900 leading-snug">{item.fullName}</span>
-                              <span className="text-[12px] text-slate-400 leading-snug">{item.email && item.email !== 'N/A' ? item.email : 'No email'}</span>
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-semibold text-[14px] text-slate-900 leading-snug truncate">{item.fullName}</span>
+                              <span className="text-[12px] text-slate-400 leading-snug truncate">{item.email && item.email !== 'N/A' ? item.email : 'No email'}</span>
                             </div>
                           </div>
                         </td>
 
                         {/* CONTACT */}
-                        <td className="py-3 px-6 whitespace-nowrap">
+                        <td className="py-3 px-4 whitespace-nowrap">
                           <div className="text-[13px] font-medium text-slate-700">
                             {item.phone && item.phone !== 'N/A' ? item.phone : '—'}
                           </div>
                         </td>
 
                         {/* SOURCE */}
-                        <td className="py-3 px-6 max-w-[200px]">
+                        <td className="py-3 px-4 max-w-[200px]">
                           <div className="flex items-center gap-2">
                             <SourceIcon source={item.source} />
                             <span className="text-[13px] text-slate-600 font-medium truncate" title={item.metaData?.formName || 'Meta Ads'}>
@@ -403,7 +429,7 @@ export default function Leads() {
                         </td>
 
                         {/* VALUE */}
-                        <td className="py-3 px-6 whitespace-nowrap">
+                        <td className="py-3 px-4 whitespace-nowrap">
                           {item.loanAmount ? (
                             <span className="font-medium text-slate-700">${Number(item.loanAmount).toLocaleString()}</span>
                           ) : (
@@ -412,23 +438,33 @@ export default function Leads() {
                         </td>
 
                         {/* STAGE */}
-                        <td className="py-3 px-6 whitespace-nowrap">
+                        <td className="py-3 px-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${stage.bg} ${stage.text}`}>
                             {stage.title}
                           </span>
                         </td>
 
                         {/* CREATED */}
-                        <td className="py-3 px-6 whitespace-nowrap text-slate-400 text-[13px]">
+                        <td className="py-3 px-4 whitespace-nowrap text-slate-400 text-[13px]">
                           {item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy') : '—'}
                         </td>
 
-                        {/* ACTIONS */}
-                        <td className="py-3 px-6 text-right whitespace-nowrap">
-                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <span className="text-[13px] font-medium text-indigo-600 hover:text-indigo-800">
+                        {/* ACTIONS (Individual Lead Delete Icon Button) */}
+                        <td className="py-3 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                           <div className="flex items-center justify-end gap-1.5">
+                             <button
+                               onClick={() => setLeadToDelete(item)}
+                               className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 hover:border-rose-200 transition-all"
+                               title={`Delete lead ${item.fullName}`}
+                             >
+                               <TrashIcon className="w-4 h-4" />
+                             </button>
+                             <button
+                               onClick={() => navigate(`/clients/${item._id}`)}
+                               className="px-2 py-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors"
+                             >
                                Open &rarr;
-                             </span>
+                             </button>
                            </div>
                         </td>
                       </tr>
@@ -480,6 +516,45 @@ export default function Leads() {
                 <button type="submit" className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all">Create Lead</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* SINGLE LEAD DELETE CONFIRMATION MODAL */}
+      {leadToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-rose-100">
+            <div className="p-6 text-center space-y-4">
+              <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto border border-rose-100">
+                <TrashIcon className="w-6 h-6" />
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900">Delete Lead '{leadToDelete.fullName}'?</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Are you sure you want to permanently delete this lead ({leadToDelete.email || leadToDelete.phone})? This will remove all associated notes, follow-ups, and messages.
+                </p>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setLeadToDelete(null)}
+                  disabled={isDeletingSingle}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteSingleLead}
+                  disabled={isDeletingSingle}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-md transition-all disabled:opacity-50"
+                >
+                  {isDeletingSingle ? 'Deleting...' : 'Delete Lead'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
