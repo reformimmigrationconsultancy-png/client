@@ -53,8 +53,8 @@ export default function LeadSourcesCard({ bySource = [] }) {
                   </div>
                 </div>
                 <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full ${entry.color} rounded-full`} 
+                  <div
+                    className={`h-full ${entry.color} rounded-full`}
                     style={{ width: `${entry.percentage}%` }}
                   />
                 </div>

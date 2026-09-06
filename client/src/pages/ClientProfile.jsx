@@ -168,7 +168,15 @@ export default function ClientProfile() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => navigate(`/followups?leadId=${id}`)}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-bold text-[13px] shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-all"
+          >
+            <ClockIcon className="w-4 h-4" />
+            + Add Follow-up
+          </button>
+
           <button 
             onClick={() => setIsEditModalOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all"

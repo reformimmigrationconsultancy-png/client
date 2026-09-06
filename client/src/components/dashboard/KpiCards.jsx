@@ -46,11 +46,12 @@ export default function KpiCards({ stats, reminders = [], onNavigateStage }) {
     {
       id: 'attention',
       title: 'ACTION ITEMS',
-      value: actionItemsCount,
-      trend: actionItemsCount > 0 ? 'Require immediate focus' : 'No urgent tasks',
-      subtitle: 'Replies & document reviews',
+      value: stats?.overdueFollowUps !== undefined ? stats.overdueFollowUps : actionItemsCount,
+      trend: (stats?.overdueFollowUps || actionItemsCount) > 0 ? `${stats?.overdueFollowUps || actionItemsCount} overdue follow-ups` : 'No urgent tasks',
+      subtitle: 'Click to open Work Center',
       icon: ExclamationTriangleIcon,
-      accent: actionItemsCount > 0 ? 'text-amber-600' : 'text-slate-400',
+      accent: (stats?.overdueFollowUps || actionItemsCount) > 0 ? 'text-amber-600' : 'text-slate-400',
+      onClick: () => window.location.href = '/lead/followups'
     }
   ];
 
