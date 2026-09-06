@@ -11,9 +11,6 @@ export default function DashboardHeader({ user, onComposeClick }) {
         <h1 className="text-[24px] font-extrabold text-slate-900 tracking-tight leading-tight">
           Dashboard Overview
         </h1>
-        <p className="text-slate-500 font-medium text-[14px] mt-1">
-          Monitor your leads, conversations and follow-ups.
-        </p>
       </div>
 
       <div className="flex items-center gap-5">
