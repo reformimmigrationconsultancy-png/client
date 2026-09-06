@@ -32,6 +32,7 @@ function App() {
              <Route path="/settings" element={<Settings />} /> 
              <Route path="/automations" element={<Automations />} />
              <Route path="/automations/new" element={<AutomationBuilder />} />
+             <Route path="/automations/:id/edit" element={<AutomationBuilder />} />
              <Route path="/templates" element={<EmailTemplates />} />
              <Route path="/followups" element={<FollowUps />} />
              {/* Redirect any legacy inbox/sent/emails to leads */}
