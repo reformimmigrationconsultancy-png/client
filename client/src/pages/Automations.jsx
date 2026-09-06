@@ -63,13 +63,19 @@ export default function Automations() {
       if (triggerFilter !== 'all') params.trigger = triggerFilter;
       if (sortOrder) params.sort = sortOrder;
 
-      const [resAutomations, resStats] = await Promise.all([
-        api.get('/automations', { params }),
-        api.get('/automations/stats')
-      ]);
+      try {
+        const resAutomations = await api.get('/automations', { params });
+        setAutomations(Array.isArray(resAutomations.data) ? resAutomations.data : []);
+      } catch (err) {
+        console.error('Automations list error:', err);
+      }
 
-      setAutomations(resAutomations.data || []);
-      setStats(resStats.data.stats || null);
+      try {
+        const resStats = await api.get('/automations/stats');
+        setStats(resStats.data?.stats || null);
+      } catch (err) {
+        console.error('Automations stats error:', err);
+      }
     } catch (err) {
       toast.error('Failed to load automations');
     } finally {
@@ -80,8 +86,10 @@ export default function Automations() {
   const fetchActivityFeed = async () => {
     try {
       const res = await api.get('/automations/activity');
-      setActivityFeed(res.data.activity || []);
-    } catch (err) {}
+      setActivityFeed(res.data?.activity || []);
+    } catch (err) {
+      console.error('Activity feed error:', err);
+    }
   };
 
   const handleToggleStatus = async (id, currentIsActive, e) => {
