@@ -132,6 +132,8 @@ export default function ClientProfile() {
       console.error(err);
       toast.error('Failed to log call');
     }
+  };
+
   const handleDeleteClient = async () => {
     if (!window.confirm(`Are you sure you want to permanently delete lead '${client.fullName}'?`)) return;
     try {
