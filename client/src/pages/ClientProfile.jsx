@@ -26,6 +26,8 @@ export default function ClientProfile() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('notes');
   const [newNote, setNewNote] = useState('');
+  const [executions, setExecutions] = useState([]);
+  const [reminders, setReminders] = useState([]);
 
   const getInitials = (name) => {
     if (!name) return 'L';
@@ -50,6 +52,17 @@ export default function ClientProfile() {
       const res = await api.get(`/clients/${id}`);
       setClient(res.data.client);
       setEditData(res.data.client);
+      
+      const [execRes, remRes] = await Promise.all([
+        api.get(`/automations/executions/client/${id}`),
+        api.get(`/reminders`)
+      ]);
+      setExecutions(execRes.data || []);
+      
+      if (remRes.data && remRes.data.success) {
+        const clientReminders = (remRes.data.reminders || []).filter(r => r.client?._id === id || r.client === id);
+        setReminders(clientReminders);
+      }
     } catch (err) {
       console.error(err);
       toast.error('Failed to load client profile');
@@ -265,7 +278,7 @@ export default function ClientProfile() {
           {/* Right Column (30%) */}
           <div className="w-full lg:w-80 flex flex-col gap-6 shrink-0">
             
-            {/* Status Summary */}
+            {/* Status & Next Action Summary */}
             <div className="bg-white rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-5">
               <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Status Overview</h3>
               <div className="flex items-center justify-between mb-3">
@@ -280,19 +293,99 @@ export default function ClientProfile() {
                   {client.assignedTo?.name || 'Unassigned'}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-medium text-slate-600">Next Action</span>
-                <span className="text-[12px] font-medium text-slate-400 italic">No follow-up</span>
+
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[13px] font-medium text-slate-600">Next Action</span>
+                </div>
+                {reminders.filter(r => !r.isCompleted).length > 0 ? (
+                  <div className="space-y-2">
+                    {reminders.filter(r => !r.isCompleted).sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)).slice(0, 1).map(r => (
+                      <div key={r._id} className="bg-slate-50 p-2 rounded-md border border-slate-200">
+                        <p className="text-[13px] font-bold text-slate-900">{r.title}</p>
+                        <p className="text-[11px] text-slate-500 mt-1">{new Date(r.dueDate).toLocaleString()}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-[12px] font-medium text-slate-400 italic">No follow-ups scheduled</span>
+                )}
               </div>
               
               <button 
-                onClick={() => setIsCallModalOpen(true)}
-                className="w-full mt-5 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all"
+                onClick={() => window.location.href='/followups'}
+                className="w-full mt-4 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all"
               >
                 <ClockIcon className="w-4 h-4" />
-                Log Interaction
+                Add Follow-up
               </button>
             </div>
+
+            {/* Automation State Widget */}
+            {executions.length > 0 && (
+              <div className="bg-white rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-5">
+                <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Active Automations</h3>
+                <div className="space-y-4">
+                  {executions.map(exec => (
+                    <div key={exec._id} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[13px] font-bold text-slate-900">{exec.automation?.name || 'Workflow'}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
+                          exec.status === 'active' ? 'bg-green-100 text-green-700' :
+                          exec.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                          exec.status === 'stopped' ? 'bg-gray-100 text-gray-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {exec.status}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        {exec.status === 'active' && exec.nextRunAt ? (
+                          <>Next step: {new Date(exec.nextRunAt).toLocaleString()}</>
+                        ) : exec.status === 'completed' ? (
+                          <>Completed on {new Date(exec.completedAt).toLocaleDateString()}</>
+                        ) : exec.status === 'stopped' ? (
+                          <>Stopped: {exec.failureReason || 'Manual intervention'}</>
+                        ) : (
+                          <>Failed: {exec.failureReason}</>
+                        )}
+                      </div>
+                      {exec.status === 'active' && (
+                        <div className="mt-2 flex space-x-2">
+                          <button 
+                            onClick={() => {
+                              api.patch(`/automations/executions/${exec._id}/status`, { status: 'paused' }).then(() => fetchClient());
+                            }}
+                            className="text-[11px] font-medium text-amber-600 hover:underline"
+                          >
+                            Pause
+                          </button>
+                          <button 
+                            onClick={() => {
+                              api.patch(`/automations/executions/${exec._id}/status`, { status: 'stopped' }).then(() => fetchClient());
+                            }}
+                            className="text-[11px] font-medium text-red-600 hover:underline"
+                          >
+                            Stop
+                          </button>
+                        </div>
+                      )}
+                      {exec.status === 'paused' && (
+                        <div className="mt-2 flex space-x-2">
+                          <button 
+                            onClick={() => {
+                              api.patch(`/automations/executions/${exec._id}/status`, { status: 'active' }).then(() => fetchClient());
+                            }}
+                            className="text-[11px] font-medium text-green-600 hover:underline"
+                          >
+                            Resume
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Meta Ads Lead Data */}
             {client.source === 'facebook' && (

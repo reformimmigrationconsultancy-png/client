@@ -9,6 +9,10 @@ import Dashboard from './pages/Dashboard';
 import Leads from './pages/Leads';
 import ClientProfile from './pages/ClientProfile';
 import Settings from './pages/Settings';
+import Automations from './pages/Automations';
+import AutomationBuilder from './pages/AutomationBuilder';
+import EmailTemplates from './pages/EmailTemplates';
+import FollowUps from './pages/FollowUps';
 
 function App() {
   const pathname = window.location.pathname;
@@ -26,6 +30,10 @@ function App() {
              <Route path="/leads" element={<Leads />} />
              <Route path="/clients/:id" element={<ClientProfile />} />
              <Route path="/settings" element={<Settings />} /> 
+             <Route path="/automations" element={<Automations />} />
+             <Route path="/automations/new" element={<AutomationBuilder />} />
+             <Route path="/templates" element={<EmailTemplates />} />
+             <Route path="/followups" element={<FollowUps />} />
              {/* Redirect any legacy inbox/sent/emails to leads */}
              <Route path="/inbox" element={<Navigate to="/leads" replace />} />
              <Route path="/sent" element={<Navigate to="/leads" replace />} />

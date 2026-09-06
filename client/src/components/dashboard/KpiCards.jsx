@@ -6,14 +6,13 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
-export default function KpiCards({ stats, onNavigateStage }) {
+export default function KpiCards({ stats, reminders = [], onNavigateStage }) {
   const totalLeads = stats?.totalLeads || 0;
   const newLeads = stats?.pipeline?.newLeads || 0;
   const openConvs = stats?.openConversations || 0;
-  const docsPending = stats?.pipeline?.documents_received || stats?.pipeline?.docsReceived || 0;
   
-  // Strict definition of Action Items
-  const actionItemsCount = openConvs + docsPending;
+  const now = new Date();
+  const actionItemsCount = reminders.filter(r => !r.isCompleted && new Date(r.dueDate) <= now).length;
 
   const cards = [
     {

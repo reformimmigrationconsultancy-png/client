@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [recentLeads, setRecentLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reminders, setReminders] = useState([]);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
 
   useEffect(() => {
@@ -44,9 +45,10 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsRes, clientsRes] = await Promise.all([
+      const [statsRes, clientsRes, remindersRes] = await Promise.all([
         api.get('/dashboard/stats'),
-        api.get('/clients?limit=8')
+        api.get('/clients?limit=8'),
+        api.get('/reminders')
       ]);
 
       if (statsRes.data.success) {
@@ -55,6 +57,10 @@ export default function Dashboard() {
 
       if (clientsRes.data.success) {
         setRecentLeads(clientsRes.data.clients || []);
+      }
+      
+      if (remindersRes.data && remindersRes.data.success) {
+        setReminders(remindersRes.data.reminders || []);
       }
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
@@ -87,7 +93,7 @@ export default function Dashboard() {
         <DashboardHeader user={user} onComposeClick={() => setIsComposeOpen(true)} />
 
         {/* 2. KPI Summary Cards */}
-        <KpiCards stats={stats} onNavigateStage={handleNavigateStage} />
+        <KpiCards stats={stats} reminders={reminders} onNavigateStage={handleNavigateStage} />
 
         {/* 3. Main CRM Dashboard Content */}
         <div className="flex flex-col gap-6">

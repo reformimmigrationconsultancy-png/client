@@ -12,6 +12,9 @@ import {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Leads Pipeline', href: '/leads', icon: UserGroupIcon },
+  { name: 'Follow-ups', href: '/followups', icon: Cog6ToothIcon },
+  { name: 'Automations', href: '/automations', icon: SparklesIcon },
+  { name: 'Email Templates', href: '/templates', icon: SparklesIcon },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];
 
@@ -59,9 +62,9 @@ export default function Sidebar({ onClose }) {
                       onClick={() => onClose && onClose()}
                       className={classNames(
                         isActive
-                          ? 'bg-indigo-50/50 text-indigo-700 font-semibold'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium',
-                        'group relative flex items-center gap-x-3 rounded-md px-3 py-2 text-[13px] transition-colors'
+                          ? 'bg-indigo-50/50 text-indigo-700 font-semibold shadow-sm'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium hover:translate-x-1 hover:shadow-sm',
+                        'group relative flex items-center gap-x-3 rounded-md px-3 py-2.5 text-[16px] transition-all duration-300 ease-in-out'
                       )}
                     >
                       {isActive && (
@@ -69,8 +72,8 @@ export default function Sidebar({ onClose }) {
                       )}
                       <item.icon
                         className={classNames(
-                          isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600',
-                          'h-4 w-4 shrink-0'
+                          isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-500 transition-colors duration-300',
+                          'h-6 w-6 shrink-0'
                         )}
                         aria-hidden="true"
                       />
