@@ -3,6 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../utils/api';
 import { toast } from 'react-hot-toast';
 import { 
+  resolveVariables, 
+  validateVariables, 
+  getVariableDictionary, 
+  SUPPORTED_VARIABLES, 
+  SAMPLE_LEAD_DATA 
+} from '../utils/variableResolver';
+import { 
   ArrowLeftIcon, 
   CheckIcon, 
   SparklesIcon, 
@@ -12,7 +19,9 @@ import {
   TagIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
-  DocumentDuplicateIcon,
+  UserIcon,
+  CheckBadgeIcon,
+  InformationCircleIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
 
@@ -28,21 +37,12 @@ const CATEGORIES = [
   'Custom'
 ];
 
-const PERSONALIZATION_TAGS = [
-  { tag: '{{fullName}}', label: 'Full Name', example: 'Josh Dasilva' },
-  { tag: '{{firstName}}', label: 'First Name', example: 'Josh' },
-  { tag: '{{email}}', label: 'Email', example: 'josh.dasilva@example.com' },
-  { tag: '{{phone}}', label: 'Phone', example: '+1 (705) 555-0192' },
-  { tag: '{{source}}', label: 'Lead Source', example: 'Google Ads' },
-  { tag: '{{admin_name}}', label: 'Agent Name', example: 'Manpreet Singh' },
-];
-
 export default function EmailTemplateEditor() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = Boolean(id);
 
-  // Form Fields
+  // Form Fields (Raw template strings with {{placeholders}})
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Follow-up');
   const [description, setDescription] = useState('');
@@ -50,13 +50,17 @@ export default function EmailTemplateEditor() {
   const [body, setBody] = useState('');
   const [status, setStatus] = useState('active');
 
-  // UI States
+  // UI & Data States
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [previewDevice, setPreviewDevice] = useState('desktop'); // desktop | mobile
-  const [sampleLeads, setSampleLeads] = useState([]);
-  const [selectedSampleLead, setSelectedSampleLead] = useState(null);
-  
+
+  // Dynamic Preview Lead Picker State
+  const [leadList, setLeadList] = useState([]);
+  const [leadSearchQuery, setLeadSearchQuery] = useState('');
+  const [selectedLead, setSelectedLead] = useState(null); // null = Sample Mode
+  const [isSearchingLeads, setIsSearchingLeads] = useState(false);
+
   // Test Email Modal
   const [showTestModal, setShowTestModal] = useState(false);
   const [testEmailRecipient, setTestEmailRecipient] = useState('');
@@ -68,36 +72,28 @@ export default function EmailTemplateEditor() {
   const bodyTextareaRef = useRef(null);
 
   useEffect(() => {
-    fetchSampleLeads();
+    fetchInitialLeads();
     if (isEditing) {
       fetchTemplateDetails();
     }
   }, [id]);
 
-  const fetchSampleLeads = async () => {
+  const fetchInitialLeads = async (query = '') => {
+    setIsSearchingLeads(true);
     try {
-      const res = await api.get('/clients', { params: { limit: 5 } });
-      const leads = res.data?.clients || res.data || [];
-      if (Array.isArray(leads) && leads.length > 0) {
-        setSampleLeads(leads);
-        setSelectedSampleLead(leads[0]);
-      } else {
-        // Fallback default sample lead
-        setSelectedSampleLead({
-          name: 'Josh Dasilva',
-          email: 'josh.dasilva@example.com',
-          phone: '+1 (705) 555-0192',
-          source: 'Website Form'
-        });
+      const res = await api.get('/clients', { params: { search: query, limit: 20 } });
+      const clients = res.data?.clients || res.data || [];
+      if (Array.isArray(clients)) {
+        setLeadList(clients);
+        if (!selectedLead && clients.length > 0 && !query) {
+          // Select the first lead by default for immediate real preview
+          setSelectedLead(clients[0]);
+        }
       }
     } catch (err) {
-      console.error('Failed to fetch sample leads:', err);
-      setSelectedSampleLead({
-        name: 'Josh Dasilva',
-        email: 'josh.dasilva@example.com',
-        phone: '+1 (705) 555-0192',
-        source: 'Website Form'
-      });
+      console.error('Failed to fetch leads for editor preview:', err);
+    } fontFinally: {
+      setIsSearchingLeads(false);
     }
   };
 
@@ -105,7 +101,7 @@ export default function EmailTemplateEditor() {
     setLoading(true);
     try {
       const res = await api.get(`/email-templates/${id}`);
-      const t = res.data;
+      const t = res.data?.template || res.data;
       setName(t.name || '');
       setCategory(t.category || 'General');
       setDescription(t.description || '');
@@ -115,12 +111,12 @@ export default function EmailTemplateEditor() {
     } catch (err) {
       toast.error('Failed to load email template');
       navigate('/templates');
-    } fontFinally: {
+    } finally {
       setLoading(false);
     }
   };
 
-  // Helper to insert tag into active input/textarea
+  // Insert variable tag into subject or body at cursor
   const insertTag = (tag) => {
     if (activeFocusRef.current === 'subject' && subjectInputRef.current) {
       const input = subjectInputRef.current;
@@ -157,6 +153,16 @@ export default function EmailTemplateEditor() {
     if (!body.trim()) {
       toast.error('Email body text is required');
       return;
+    }
+
+    const unsupportedSubjectVars = validateVariables(subject);
+    const unsupportedBodyVars = validateVariables(body);
+    const allUnsupported = Array.from(new Set([...unsupportedSubjectVars, ...unsupportedBodyVars]));
+
+    if (allUnsupported.length > 0) {
+      if (!window.confirm(`Warning: Found unsupported variable(s): ${allUnsupported.join(', ')}. Save anyway?`)) {
+        return;
+      }
     }
 
     const targetStatus = overrideStatus || status;
@@ -199,8 +205,9 @@ export default function EmailTemplateEditor() {
     try {
       await api.post('/email-templates/test-send', {
         recipientEmail: testEmailRecipient.trim(),
-        subject: renderPreviewText(subject),
-        body: renderPreviewText(body)
+        subject,
+        body,
+        leadId: selectedLead?._id || null
       });
       toast.success(`Test email sent to ${testEmailRecipient}`);
       setShowTestModal(false);
@@ -212,28 +219,16 @@ export default function EmailTemplateEditor() {
     }
   };
 
-  // Render variables in preview
-  const renderPreviewText = (text) => {
-    if (!text) return '';
-    const leadName = selectedSampleLead?.name || 'Josh Dasilva';
-    const firstName = leadName.split(' ')[0];
-    const email = selectedSampleLead?.email || 'josh.dasilva@example.com';
-    const phone = selectedSampleLead?.phone || '+1 (705) 555-0192';
-    const source = selectedSampleLead?.source || 'Website Form';
-    const adminName = 'Manpreet Singh';
+  // Determine active lead context for preview rendering (Real Lead vs Sample Lead Data)
+  const activeLeadContext = selectedLead || SAMPLE_LEAD_DATA;
+  const isRealLead = Boolean(selectedLead);
 
-    return text
-      .replace(/\{\{fullName\}\}/g, leadName)
-      .replace(/\{\{full_name\}\}/g, leadName)
-      .replace(/\{\{firstName\}\}/g, firstName)
-      .replace(/\{\{first_name\}\}/g, firstName)
-      .replace(/\{\{email\}\}/g, email)
-      .replace(/\{\{phone\}\}/g, phone)
-      .replace(/\{\{source\}\}/g, source)
-      .replace(/\{\{admin_name\}\}/g, adminName);
-  };
+  // Resolved Subject & Body (for live preview frame only; editor inputs hold raw template)
+  const renderedSubject = resolveVariables(subject, activeLeadContext);
+  const renderedBody = resolveVariables(body, activeLeadContext);
+  const variableDictionary = getVariableDictionary(activeLeadContext);
 
-  // Template Quality / Health Checks
+  // Health / Quality Diagnostics
   const getQualityDiagnostics = () => {
     const checks = [];
 
@@ -254,14 +249,19 @@ export default function EmailTemplateEditor() {
       if (tagMatches.length === 0) {
         checks.push({ type: 'warning', message: 'No personalization tags used in body.' });
       } else {
-        checks.push({ type: 'success', message: `Uses ${tagMatches.length} personalization tags.` });
+        checks.push({ type: 'success', message: `Uses ${tagMatches.length} personalization variable tags.` });
       }
     }
 
-    // Broken bracket tag detector
-    const brokenTagMatch = body.match(/\{[^{}]+\}/g);
-    if (brokenTagMatch && brokenTagMatch.some(m => !m.startsWith('{{'))) {
-      checks.push({ type: 'warning', message: 'Possible broken variable tag detected (e.g. single { brackets }).' });
+    // Unsupported Variable Check
+    const unsupportedSubjectVars = validateVariables(subject);
+    const unsupportedBodyVars = validateVariables(body);
+    const allUnsupported = Array.from(new Set([...unsupportedSubjectVars, ...unsupportedBodyVars]));
+
+    if (allUnsupported.length > 0) {
+      allUnsupported.forEach(varTag => {
+        checks.push({ type: 'error', message: `Unsupported variable detected: ${varTag}` });
+      });
     }
 
     return checks;
@@ -294,7 +294,7 @@ export default function EmailTemplateEditor() {
             <h1 className="text-lg font-bold text-slate-900 leading-tight">
               {isEditing ? `Edit: ${name || 'Untitled Template'}` : 'Create New Email Template'}
             </h1>
-            <p className="text-xs text-slate-500">Design high-converting email templates with live tag preview.</p>
+            <p className="text-xs text-slate-500">Design high-converting email templates with canonical variable replacement.</p>
           </div>
         </div>
 
@@ -343,7 +343,7 @@ export default function EmailTemplateEditor() {
       {/* Main 3-Panel Split Workspace */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
         
-        {/* PANEL 1: METADATA & PERSONALIZATION TAGS (3 cols) */}
+        {/* PANEL 1: METADATA & CATEGORIZED MERGE TAGS (3 cols) */}
         <div className="lg:col-span-3 border-r border-slate-200/80 bg-white p-5 overflow-y-auto space-y-6">
           
           {/* Metadata Section */}
@@ -393,7 +393,7 @@ export default function EmailTemplateEditor() {
 
           <hr className="border-slate-100" />
 
-          {/* Personalization Merge Tags */}
+          {/* Categorized Merge Variable Tags */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
@@ -403,27 +403,30 @@ export default function EmailTemplateEditor() {
               <span className="text-[10px] text-slate-400">Click to insert</span>
             </div>
             <p className="text-[11px] text-slate-500 leading-normal">
-              Click any variable below to insert it into your active field (Subject line or Email Body).
+              Click any variable to insert it into your active field (Subject or Email Body).
             </p>
 
-            <div className="space-y-1.5">
-              {PERSONALIZATION_TAGS.map((item) => (
-                <button
-                  key={item.tag}
-                  type="button"
-                  onClick={() => insertTag(item.tag)}
-                  className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 hover:bg-blue-50 border border-slate-200/80 hover:border-blue-200 text-left transition-all group"
-                >
-                  <div className="min-w-0">
-                    <span className="text-xs font-mono font-bold text-blue-700 group-hover:text-blue-800 block">{item.tag}</span>
-                    <span className="text-[10px] text-slate-500 block truncate">{item.label}</span>
-                  </div>
-                  <span className="text-[10px] bg-white group-hover:bg-blue-100 px-1.5 py-0.5 rounded text-slate-400 font-mono">
-                    + Insert
-                  </span>
-                </button>
-              ))}
-            </div>
+            {['Lead', 'Assignment', 'CRM'].map(cat => (
+              <div key={cat} className="space-y-1.5 pt-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{cat} Variables</span>
+                {SUPPORTED_VARIABLES.filter(item => item.category === cat).map((item) => (
+                  <button
+                    key={item.tag}
+                    type="button"
+                    onClick={() => insertTag(item.tag)}
+                    className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 hover:bg-blue-50 border border-slate-200/80 hover:border-blue-200 text-left transition-all group"
+                  >
+                    <div className="min-w-0">
+                      <span className="text-xs font-mono font-bold text-blue-700 group-hover:text-blue-800 block">{item.tag}</span>
+                      <span className="text-[10px] text-slate-500 block truncate">{item.label}</span>
+                    </div>
+                    <span className="text-[10px] bg-white group-hover:bg-blue-100 px-1.5 py-0.5 rounded text-slate-400 font-mono">
+                      + Insert
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -449,11 +452,11 @@ export default function EmailTemplateEditor() {
             <input
               ref={subjectInputRef}
               type="text"
-              placeholder="e.g. Quick follow-up regarding your inquiry, {{firstName}}"
+              placeholder="e.g. Welcome {{first_name}} — thanks for your inquiry!"
               value={subject}
               onFocus={() => { activeFocusRef.current = 'subject'; }}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 font-semibold focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 font-semibold focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none font-mono"
             />
           </div>
 
@@ -467,11 +470,11 @@ export default function EmailTemplateEditor() {
             </div>
             <textarea
               ref={bodyTextareaRef}
-              placeholder={`Hi {{firstName}},\n\nThank you for reaching out to us. I wanted to follow up on your recent inquiry...\n\nBest regards,\n{{admin_name}}`}
+              placeholder={`Hello {{first_name}},\n\nThanks for reaching out to us. We received your inquiry regarding mortgage options.\n\nBest regards,\n{{admin_name}}`}
               value={body}
               onFocus={() => { activeFocusRef.current = 'body'; }}
               onChange={(e) => setBody(e.target.value)}
-              className="flex-1 w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-sans text-slate-800 leading-relaxed focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none resize-none"
+              className="flex-1 w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-800 leading-relaxed focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none resize-none"
             />
           </div>
         </div>
@@ -483,7 +486,7 @@ export default function EmailTemplateEditor() {
           <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
             <div>
               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Live Preview</h3>
-              <p className="text-[10px] text-slate-500">Real-time sample rendering</p>
+              <p className="text-[10px] text-slate-500">Real-time dynamic rendering</p>
             </div>
 
             {/* Device Switcher */}
@@ -505,43 +508,75 @@ export default function EmailTemplateEditor() {
             </div>
           </div>
 
-          {/* Sample Lead Picker */}
+          {/* DYNAMIC LEAD PREVIEW SELECTOR */}
           <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs space-y-2">
             <div className="flex justify-between items-center">
-              <span className="text-[11px] font-bold text-slate-700">Sample Lead Context:</span>
-              <span className="text-[10px] text-blue-600 font-semibold">{selectedSampleLead?.name || 'Sample'}</span>
+              <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                <UserIcon className="w-3.5 h-3.5 text-blue-600" />
+                Preview Lead Context
+              </label>
+
+              {/* Status Badge */}
+              {isRealLead ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider">
+                  <CheckBadgeIcon className="w-3 h-3 text-emerald-500" />
+                  REAL LEAD PREVIEW
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider">
+                  <InformationCircleIcon className="w-3 h-3 text-amber-500" />
+                  SAMPLE RENDERING
+                </span>
+              )}
             </div>
-            {sampleLeads.length > 0 && (
-              <select
-                value={selectedSampleLead?._id || ''}
+
+            <div className="space-y-1.5">
+              <input
+                type="text"
+                placeholder="Search lead by name, email..."
+                value={leadSearchQuery}
                 onChange={(e) => {
-                  const found = sampleLeads.find(l => l._id === e.target.value);
-                  if (found) setSelectedSampleLead(found);
+                  setLeadSearchQuery(e.target.value);
+                  fetchInitialLeads(e.target.value);
                 }}
-                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none"
+                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+
+              <select
+                value={selectedLead?._id || ''}
+                onChange={(e) => {
+                  if (!e.target.value) {
+                    setSelectedLead(null);
+                  } else {
+                    const found = leadList.find(l => l._id === e.target.value);
+                    if (found) setSelectedLead(found);
+                  }
+                }}
+                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 font-semibold focus:outline-none"
               >
-                {sampleLeads.map(l => (
+                <option value="">-- Sample Lead --</option>
+                {leadList.map(l => (
                   <option key={l._id} value={l._id}>
-                    {l.name} ({l.email || 'No email'})
+                    {l.fullName || l.name} ({l.email || 'No email'})
                   </option>
                 ))}
               </select>
-            )}
+            </div>
           </div>
 
           {/* Preview Container Frame */}
           <div className={`flex-1 transition-all ${previewDevice === 'mobile' ? 'max-w-[320px] mx-auto border-8 border-slate-800 rounded-3xl p-3 shadow-xl bg-white' : 'w-full border border-slate-200/80 rounded-xl bg-white shadow-sm'}`}>
             <div className="p-3 bg-slate-50 border-b border-slate-200/80 rounded-t-lg space-y-1">
-              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Subject:</div>
-              <h4 className="font-bold text-slate-900 text-xs line-clamp-2">
-                {renderPreviewText(subject) || <span className="text-slate-300 italic">No subject line...</span>}
+              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Subject Line Preview:</div>
+              <h4 className="font-bold text-slate-900 text-xs leading-snug">
+                {renderedSubject || <span className="text-slate-300 italic">No subject line...</span>}
               </h4>
             </div>
 
             <div 
               className="p-4 text-slate-800 leading-relaxed text-xs space-y-2 font-sans overflow-x-auto min-h-[220px]"
               dangerouslySetInnerHTML={{
-                __html: renderPreviewText(body).replace(/\n/g, '<br/>') || '<span className="text-slate-300 italic">Type content in the editor to view live rendered email preview...</span>'
+                __html: renderedBody.replace(/\n/g, '<br/>') || '<span className="text-slate-300 italic">Type content in the editor to view live rendered email preview...</span>'
               }}
             />
           </div>
@@ -550,7 +585,7 @@ export default function EmailTemplateEditor() {
           <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs space-y-2.5">
             <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
               <CheckCircleIcon className="w-4 h-4 text-emerald-600" />
-              Template Health & Quality
+              Template Health & Diagnostics
             </h4>
 
             <div className="space-y-1.5">
@@ -583,7 +618,7 @@ export default function EmailTemplateEditor() {
             </div>
 
             <p className="text-xs text-slate-500">
-              Dispatch a real test email with variables substituted using sample lead details.
+              Dispatch a real test email rendered using lead context: <strong>{activeLeadContext.fullName || activeLeadContext.name}</strong>.
             </p>
 
             <form onSubmit={handleSendTestEmail} className="space-y-4">

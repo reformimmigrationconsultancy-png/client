@@ -2,7 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { toast } from 'react-hot-toast';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
+import { 
+  resolveVariables, 
+  getVariableDictionary, 
+  SAMPLE_LEAD_DATA 
+} from '../utils/variableResolver';
 import { 
   EnvelopeIcon, 
   PlusIcon, 
@@ -16,11 +21,11 @@ import {
   SparklesIcon, 
   ClockIcon, 
   CheckCircleIcon, 
-  ExclamationCircleIcon,
-  FunnelIcon,
   ComputerDesktopIcon,
   DevicePhoneMobileIcon,
-  TagIcon
+  UserIcon,
+  CheckBadgeIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
 
 const CATEGORY_COLORS = {
@@ -49,14 +54,21 @@ export default function EmailTemplates() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('recently_updated');
 
-  // Preview & Test Send Drawer State
+  // Preview Drawer State
   const [previewTemplate, setPreviewTemplate] = useState(null);
   const [previewDevice, setPreviewDevice] = useState('desktop'); // desktop | mobile
   const [testEmailAddress, setTestEmailAddress] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
 
+  // Dynamic Lead Picker State for Live Personalization Preview
+  const [leadList, setLeadList] = useState([]);
+  const [leadSearchQuery, setLeadSearchQuery] = useState('');
+  const [selectedLead, setSelectedLead] = useState(null); // null = Sample Mode
+  const [isSearchingLeads, setIsSearchingLeads] = useState(false);
+
   useEffect(() => {
     fetchTemplatesAndStats();
+    fetchInitialLeads();
   }, [search, categoryFilter, statusFilter, sortOrder]);
 
   const fetchTemplatesAndStats = async () => {
@@ -85,6 +97,21 @@ export default function EmailTemplates() {
       toast.error('Failed to load email templates');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInitialLeads = async (searchQuery = '') => {
+    setIsSearchingLeads(true);
+    try {
+      const res = await api.get('/clients', { params: { search: searchQuery, limit: 20 } });
+      const clients = res.data?.clients || res.data || [];
+      if (Array.isArray(clients)) {
+        setLeadList(clients);
+      }
+    } catch (err) {
+      console.error('Failed to fetch leads for preview:', err);
+    } finally {
+      setIsSearchingLeads(false);
     }
   };
 
@@ -127,7 +154,8 @@ export default function EmailTemplates() {
       await api.post('/email-templates/test-send', {
         recipientEmail: testEmailAddress,
         subject: previewTemplate.subject,
-        body: previewTemplate.body
+        body: previewTemplate.body,
+        leadId: selectedLead?._id || null
       });
       toast.success(`Test email sent to ${testEmailAddress}`);
       setTestEmailAddress('');
@@ -160,6 +188,15 @@ export default function EmailTemplates() {
       </span>
     );
   };
+
+  // Determine active lead context for rendering (Real Lead vs Sample Lead Data)
+  const activeLeadContext = selectedLead || SAMPLE_LEAD_DATA;
+  const isRealLead = Boolean(selectedLead);
+
+  // Resolved Subject & Body
+  const renderedSubject = previewTemplate ? resolveVariables(previewTemplate.subject, activeLeadContext) : '';
+  const renderedBody = previewTemplate ? resolveVariables(previewTemplate.body, activeLeadContext) : '';
+  const variableDictionary = getVariableDictionary(activeLeadContext);
 
   return (
     <div className="flex flex-col h-full bg-[#f8fafc] overflow-hidden">
@@ -449,10 +486,12 @@ export default function EmailTemplates() {
       {/* TEMPLATE LIVE PREVIEW & TEST SEND SLIDE-OVER DRAWER */}
       {previewTemplate && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex justify-end">
-          <div className="bg-white w-full max-w-xl h-full flex flex-col shadow-2xl border-l border-slate-200 overflow-hidden animate-slide-in">
+          <div className="bg-white w-full max-w-2xl h-full flex flex-col shadow-2xl border-l border-slate-200 overflow-hidden animate-slide-in">
+            
+            {/* Drawer Top Header */}
             <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50/80">
               <div>
-                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Email Preview & Test Send</span>
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block">EMAIL PREVIEW & TEST SEND</span>
                 <h2 className="text-base font-bold text-slate-900 leading-snug mt-0.5">{previewTemplate.name}</h2>
               </div>
               <button onClick={() => setPreviewTemplate(null)} className="text-slate-400 hover:text-slate-600">
@@ -460,10 +499,11 @@ export default function EmailTemplates() {
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
-              {/* Preview Controls Header */}
+            <div className="p-6 overflow-y-auto space-y-5 flex-1 text-xs">
+              
+              {/* Device View & Template Category Bar */}
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
                   <button
                     onClick={() => setPreviewDevice('desktop')}
                     className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${previewDevice === 'desktop' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}
@@ -485,37 +525,135 @@ export default function EmailTemplates() {
                 </span>
               </div>
 
-              {/* Rendered Email Frame */}
+              {/* DYNAMIC PREVIEW LEAD SEARCH & SELECTOR BAR */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <UserIcon className="w-4 h-4 text-blue-600" />
+                    Preview Lead Context
+                  </label>
+
+                  {/* Mode Badge */}
+                  {isRealLead ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider">
+                      <CheckBadgeIcon className="w-3.5 h-3.5 text-emerald-500" />
+                      REAL LEAD PREVIEW
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider">
+                      <InformationCircleIcon className="w-3.5 h-3.5 text-amber-500" />
+                      SAMPLE RENDERING
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      placeholder="Search lead by name, email, phone..."
+                      value={leadSearchQuery}
+                      onChange={(e) => {
+                        setLeadSearchQuery(e.target.value);
+                        fetchInitialLeads(e.target.value);
+                      }}
+                      className="w-full pl-3 pr-8 py-1.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                    {isSearchingLeads && (
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin h-3.5 w-3.5 border-b-2 border-blue-600 rounded-full" />
+                    )}
+                  </div>
+
+                  <select
+                    value={selectedLead?._id || ''}
+                    onChange={(e) => {
+                      if (!e.target.value) {
+                        setSelectedLead(null);
+                      } else {
+                        const found = leadList.find(l => l._id === e.target.value);
+                        if (found) setSelectedLead(found);
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none max-w-[200px] truncate"
+                  >
+                    <option value="">-- Sample Lead --</option>
+                    {leadList.map((lead) => (
+                      <option key={lead._id} value={lead._id}>
+                        {lead.fullName || lead.name} ({lead.email || 'No email'})
+                      </option>
+                    ))}
+                  </select>
+
+                  {selectedLead && (
+                    <button
+                      onClick={() => {
+                        setSelectedLead(null);
+                        setLeadSearchQuery('');
+                      }}
+                      className="text-xs text-slate-500 hover:text-slate-800 underline px-1"
+                      title="Reset to Sample Lead"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+
+                <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1">
+                  <span>
+                    Selected: <strong className="text-slate-800">{activeLeadContext.fullName || activeLeadContext.name}</strong>
+                  </span>
+                  <span>{activeLeadContext.email}</span>
+                </div>
+              </div>
+
+              {/* RENDERED EMAIL CONTAINER FRAME */}
               <div className={`mx-auto transition-all ${previewDevice === 'mobile' ? 'max-w-[340px] border-8 border-slate-800 rounded-3xl p-3 shadow-xl bg-white' : 'w-full border border-slate-200 rounded-xl bg-white shadow-sm'}`}>
+                
+                {/* Subject Header */}
                 <div className="p-4 bg-slate-50 border-b border-slate-200 space-y-1">
                   <div className="flex justify-between">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Subject:</span>
-                    <span className="text-[10px] text-slate-400">Sample Rendering</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Subject Line:</span>
+                    <span className="text-[10px] text-slate-400">Resolved Live</span>
                   </div>
-                  <h3 className="font-bold text-slate-900 text-sm">
-                    {previewTemplate.subject.replace(/\{\{fullName\}\}/g, 'Josh Dasilva').replace(/\{\{firstName\}\}/g, 'Josh')}
+                  <h3 className="font-bold text-slate-900 text-sm leading-snug">
+                    {renderedSubject || <span className="text-slate-300 italic">No subject provided</span>}
                   </h3>
                 </div>
 
+                {/* Body Content */}
                 <div 
                   className="p-6 text-slate-800 leading-relaxed text-sm bg-white space-y-2 font-sans overflow-x-auto min-h-[220px]"
                   dangerouslySetInnerHTML={{
-                    __html: previewTemplate.body
-                      .replace(/\{\{fullName\}\}/g, 'Josh Dasilva')
-                      .replace(/\{\{first_name\}\}/g, 'Josh')
-                      .replace(/\{\{firstName\}\}/g, 'Josh')
-                      .replace(/\{\{phone\}\}/g, '+1 (705) 555-0192')
-                      .replace(/\{\{email\}\}/g, 'josh.dasilva@example.com')
-                      .replace(/\{\{admin_name\}\}/g, 'Manpreet Singh')
-                      .replace(/\n/g, '<br/>')
+                    __html: renderedBody.replace(/\n/g, '<br/>') || '<span className="text-slate-300 italic">No email body...</span>'
                   }}
                 />
+              </div>
+
+              {/* COMPACT PERSONALIZATION DICTIONARY PANEL */}
+              <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">PERSONALIZATION VARIABLES RESOLUTION</span>
+                  <span className="text-[10px] text-slate-400">Canonical CRM Engine</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {variableDictionary.map((item, idx) => (
+                    <div key={idx} className="bg-white p-2 rounded-lg border border-slate-200 text-[11px]">
+                      <span className="text-[10px] text-slate-400 block font-medium">{item.label}</span>
+                      <span className="font-bold text-slate-800 truncate block mt-0.5" title={item.resolved}>
+                        {item.resolved}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Test Email Dispatch Form */}
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                 <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">Send Test Email</span>
-                <p className="text-[11px] text-slate-500">Safely send a test email to your inbox before publishing to automations.</p>
+                <p className="text-[11px] text-slate-500">
+                  Safely send a test email to your inbox using the currently previewed lead ({activeLeadContext.fullName || 'Sample'}).
+                </p>
 
                 <form onSubmit={handleSendTestEmail} className="flex gap-2">
                   <input
