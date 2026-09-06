@@ -51,7 +51,7 @@ export default function KpiCards({ stats, reminders = [], onNavigateStage }) {
       subtitle: 'Click to open Work Center',
       icon: ExclamationTriangleIcon,
       accent: (stats?.overdueFollowUps || actionItemsCount) > 0 ? 'text-amber-600' : 'text-slate-400',
-      onClick: () => window.location.href = '/lead/followups'
+      onClick: () => window.location.href = '/followups'
     }
   ];
 

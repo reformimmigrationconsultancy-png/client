@@ -1094,12 +1094,15 @@ export default function FollowUps() {
                   <select
                     value={formData.reminderOption}
                     onChange={(e) => setFormData(p => ({ ...p, reminderOption: e.target.value }))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium"
                   >
-                    <option value="none">No Reminder</option>
+                    <option value="none">None</option>
+                    <option value="5m">5 minutes before</option>
+                    <option value="10m">10 minutes before</option>
                     <option value="15m">15 minutes before</option>
                     <option value="30m">30 minutes before</option>
                     <option value="1h">1 hour before</option>
+                    <option value="2h">2 hours before</option>
                     <option value="1d">1 day before</option>
                   </select>
                 </div>
