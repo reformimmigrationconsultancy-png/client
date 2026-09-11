@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import api from '../utils/api';
+import api, { BACKEND_URL } from '../utils/api';
+import io from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { format, isToday, isYesterday, isTomorrow, formatDistanceToNow } from 'date-fns';
@@ -128,6 +129,19 @@ export default function FollowUps() {
       fetchLeadById(initialLeadId);
     }
   }, [initialLeadId]);
+
+  useEffect(() => {
+    const socket = io(BACKEND_URL, { withCredentials: true, transports: ['polling', 'websocket'] });
+    const handleRefresh = () => {
+      fetchRemindersAndStats();
+    };
+    socket.on('new_reminder', handleRefresh);
+    socket.on('update_reminder', handleRefresh);
+    socket.on('delete_reminder', handleRefresh);
+    socket.on('new_lead', handleRefresh);
+    socket.on('new_client', handleRefresh);
+    return () => socket.disconnect();
+  }, []);
 
   const fetchRemindersAndStats = async () => {
     setLoading(true);

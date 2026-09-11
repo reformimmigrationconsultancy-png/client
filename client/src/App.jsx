@@ -32,8 +32,11 @@ function App() {
              <Route path="/clients/:id" element={<ClientProfile />} />
              <Route path="/settings" element={<Settings />} /> 
              <Route path="/automations" element={<Automations />} />
+             <Route path="/workflows" element={<Automations />} />
              <Route path="/automations/new" element={<AutomationBuilder />} />
+             <Route path="/workflows/new" element={<AutomationBuilder />} />
              <Route path="/automations/:id/edit" element={<AutomationBuilder />} />
+             <Route path="/workflows/:id/edit" element={<AutomationBuilder />} />
              <Route path="/templates" element={<EmailTemplates />} />
              <Route path="/templates/new" element={<EmailTemplateEditor />} />
              <Route path="/templates/:id/edit" element={<EmailTemplateEditor />} />

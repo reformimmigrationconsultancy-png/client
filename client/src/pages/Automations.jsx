@@ -7,29 +7,26 @@ import {
   PlayIcon, 
   PauseIcon, 
   PlusIcon, 
-  Cog6ToothIcon, 
   DocumentDuplicateIcon, 
   TrashIcon, 
   ClockIcon, 
-  CheckCircleIcon, 
-  ExclamationCircleIcon, 
   SparklesIcon, 
   MagnifyingGlassIcon, 
-  FunnelIcon, 
   XMarkIcon, 
-  ArrowPathIcon, 
-  ChevronRightIcon, 
-  EllipsisHorizontalIcon, 
-  UserGroupIcon, 
-  EnvelopeIcon, 
-  PhoneIcon, 
-  ExclamationTriangleIcon, 
   PencilSquareIcon,
-  EyeIcon
+  EyeIcon,
+  BoltIcon,
+  FunnelIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
 
 export default function Automations() {
   const navigate = useNavigate();
+
+  // Active Main Tab: 'rules' | 'usage'
+  const [activeTab, setActiveTab] = useState('rules');
 
   // Data States
   const [automations, setAutomations] = useState([]);
@@ -39,20 +36,21 @@ export default function Automations() {
 
   // Search & Filter States
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // all, active, paused, draft
+  const [statusFilter, setStatusFilter] = useState('all'); // all, active, paused
   const [triggerFilter, setTriggerFilter] = useState('all');
-  const [sortOrder, setSortOrder] = useState('recently_updated');
+  const [moduleFilter, setModuleFilter] = useState('all');
 
-  // Drawers & Detail Modals State
+  // Drawers & Modals
   const [selectedAutomation, setSelectedAutomation] = useState(null);
   const [automationDetails, setAutomationDetails] = useState(null);
+  const [automationToDelete, setAutomationToDelete] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [isActivityOpen, setIsActivityOpen] = useState(false);
+  const [showBanner, setShowBanner] = useState(true);
 
   useEffect(() => {
     fetchAutomationsAndStats();
     fetchActivityFeed();
-  }, [search, statusFilter, triggerFilter, sortOrder]);
+  }, [search, statusFilter, triggerFilter, moduleFilter]);
 
   const fetchAutomationsAndStats = async () => {
     setLoading(true);
@@ -61,7 +59,6 @@ export default function Automations() {
       if (search) params.search = search;
       if (statusFilter !== 'all') params.status = statusFilter;
       if (triggerFilter !== 'all') params.trigger = triggerFilter;
-      if (sortOrder) params.sort = sortOrder;
 
       try {
         const resAutomations = await api.get('/automations', { params });
@@ -77,7 +74,7 @@ export default function Automations() {
         console.error('Automations stats error:', err);
       }
     } catch (err) {
-      toast.error('Failed to load automations');
+      toast.error('Failed to load workflow rules');
     } finally {
       setLoading(false);
     }
@@ -96,10 +93,10 @@ export default function Automations() {
     if (e) e.stopPropagation();
     try {
       await api.put(`/automations/${id}`, { isActive: !currentIsActive });
-      toast.success(currentIsActive ? 'Automation Paused' : 'Automation Activated');
+      toast.success(currentIsActive ? 'Workflow Rule Deactivated' : 'Workflow Rule Activated');
       fetchAutomationsAndStats();
     } catch (err) {
-      toast.error('Failed to update status');
+      toast.error('Failed to update workflow status');
     }
   };
 
@@ -107,24 +104,28 @@ export default function Automations() {
     if (e) e.stopPropagation();
     try {
       await api.post(`/automations/${id}/duplicate`);
-      toast.success('Automation duplicated as Draft');
+      toast.success('Workflow Rule duplicated');
       fetchAutomationsAndStats();
     } catch (err) {
-      toast.error('Failed to duplicate automation');
+      toast.error('Failed to duplicate rule');
     }
   };
 
-  const handleDelete = async (id, name, e) => {
+  const handleDelete = (auto, e) => {
     if (e) e.stopPropagation();
-    if (!window.confirm(`Are you sure you want to delete '${name}'? This will stop execution for all enrolled leads.`)) return;
+    setAutomationToDelete(auto);
+  };
 
+  const confirmDeleteAutomation = async () => {
+    if (!automationToDelete) return;
     try {
-      await api.delete(`/automations/${id}`);
-      toast.success('Automation deleted');
-      if (selectedAutomation?._id === id) setSelectedAutomation(null);
+      await api.delete(`/automations/${automationToDelete._id}`);
+      toast.success(`Workflow rule '${automationToDelete.name}' deleted`);
+      if (selectedAutomation?._id === automationToDelete._id) setSelectedAutomation(null);
+      setAutomationToDelete(null);
       fetchAutomationsAndStats();
     } catch (err) {
-      toast.error('Failed to delete automation');
+      toast.error('Failed to delete rule: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -136,133 +137,117 @@ export default function Automations() {
       const res = await api.get(`/automations/${automation._id}/details`);
       setAutomationDetails(res.data);
     } catch (err) {
-      toast.error('Failed to load automation details');
+      toast.error('Failed to load workflow details');
     } finally {
       setLoadingDetails(false);
     }
   };
 
-  const formatTriggerLabel = (trigger, sourceCondition) => {
+  const formatExecuteOn = (trigger, sourceCondition) => {
     let srcText = '';
     if (sourceCondition && sourceCondition !== 'all') {
-      if (sourceCondition === 'facebook') srcText = ' (Meta Ads)';
-      else if (sourceCondition === 'google') srcText = ' (Google Ads)';
-      else if (sourceCondition === 'website') srcText = ' (Website)';
-      else srcText = ` (${sourceCondition})`;
+      srcText = ` (${sourceCondition})`;
     }
 
-    if (trigger === 'new_lead') return `New Lead Created${srcText}`;
-    if (trigger === 'stage_changed') return `Lead Stage Changed${srcText}`;
-    if (trigger === 'assigned') return `Lead Assigned${srcText}`;
-    return `Manual / API${srcText}`;
+    if (trigger === 'new_lead') return `Create${srcText}`;
+    if (trigger === 'stage_changed') return `Create or Edit${srcText}`;
+    if (trigger === 'assigned') return `Assignment${srcText}`;
+    return `Create${srcText}`;
   };
 
-  const getStatusBadge = (isActive, status) => {
-    if (isActive) {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Active
-        </span>
-      );
+  const formatModifiedDate = (dateStr) => {
+    if (!dateStr) return 'Recently';
+    try {
+      return format(new Date(dateStr), 'MMM d, yyyy');
+    } catch {
+      return 'Recently';
     }
-    if (status === 'paused') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-          <PauseIcon className="w-3 h-3" />
-          Paused
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
-        Draft
-      </span>
-    );
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f8fafc] overflow-hidden">
-      {/* Top Header Bar */}
-      <div className="bg-white border-b border-slate-200/80 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 shadow-sm z-20">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Automation Center</h1>
-            <span className="bg-purple-100 text-purple-800 text-xs font-extrabold px-2.5 py-0.5 rounded-full border border-purple-200">
-              Workflow Engine
-            </span>
+    <div className="flex flex-col h-full bg-[#f8fafc] overflow-hidden font-sans">
+      {/* 1. TOP SUB-HEADER WITH MAIN TABS */}
+      <div className="bg-white border-b border-slate-200 px-6 pt-5 pb-0 shrink-0 shadow-xs z-20">
+        {/* Main Title Block */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">Workflow Rules</h1>
+              <span className="bg-indigo-50 text-indigo-700 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-indigo-200">
+                Automations
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1 max-w-3xl leading-relaxed">
+              Workflow rules allow you to perform certain automatic actions on specific records based on filter criteria. Workflow automations can send emails, update fields, create records and much more.
+            </p>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">Automate lead follow-ups, welcome emails, and team tasks seamlessly.</p>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/automations/new')}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2 rounded-lg shadow-sm transition-all active:scale-[0.98]"
+            >
+              <PlusIcon className="w-4 h-4" />
+              Create Rule
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Tab Selection Navigation */}
+        <div className="flex items-center gap-8 border-b border-transparent">
           <button
-            onClick={() => navigate('/automations/new')}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs px-4 py-2 rounded-lg shadow-sm transition-all active:scale-[0.98]"
+            onClick={() => setActiveTab('rules')}
+            className={`pb-3 text-xs font-bold transition-all relative ${
+              activeTab === 'rules'
+                ? 'text-indigo-600 border-b-2 border-indigo-600'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
           >
-            <PlusIcon className="w-4 h-4" />
-            Create Automation
+            Rules ({automations.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('usage')}
+            className={`pb-3 text-xs font-bold transition-all relative ${
+              activeTab === 'usage'
+                ? 'text-indigo-600 border-b-2 border-indigo-600'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Usage & Execution History
           </button>
         </div>
       </div>
 
-      {/* Real Summary Metric Cards */}
-      <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
-        <div 
-          onClick={() => setStatusFilter('active')} 
-          className={`cursor-pointer bg-white p-3.5 rounded-xl border transition-all hover:shadow-md ${statusFilter === 'active' ? 'border-emerald-500 ring-2 ring-emerald-100' : 'border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]'}`}
-        >
-          <div className="flex justify-between items-center text-xs font-medium text-slate-500">
-            <span>ACTIVE AUTOMATIONS</span>
-            <SparklesIcon className="w-4 h-4 text-emerald-500" />
+      {/* 2. OPTIONAL PROMOTIONAL BANNER */}
+      {showBanner && activeTab === 'rules' && (
+        <div className="px-6 py-2.5 bg-amber-50/80 border-b border-amber-200/80 flex items-center justify-between text-xs text-amber-900 shrink-0">
+          <div className="flex items-center gap-2">
+            <InformationCircleIcon className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              <strong>Smart CRM Workflows:</strong> Create rules to automatically assign tasks, send automated welcome emails, or move leads to contacted stage when created.
+            </span>
           </div>
-          <div className="text-xl font-bold text-emerald-600 mt-1">{stats?.active ?? 0}</div>
-          <span className="text-[11px] text-slate-400">Running workflows</span>
+          <button
+            onClick={() => setShowBanner(false)}
+            className="text-amber-700 hover:text-amber-950 font-bold ml-4 text-xs"
+          >
+            <XMarkIcon className="w-4 h-4" />
+          </button>
         </div>
+      )}
 
-        <div 
-          onClick={() => setStatusFilter('paused')} 
-          className={`cursor-pointer bg-white p-3.5 rounded-xl border transition-all hover:shadow-md ${statusFilter === 'paused' ? 'border-amber-500 ring-2 ring-amber-100' : 'border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]'}`}
-        >
-          <div className="flex justify-between items-center text-xs font-medium text-slate-500">
-            <span>PAUSED</span>
-            <PauseIcon className="w-4 h-4 text-amber-500" />
-          </div>
-          <div className="text-xl font-bold text-amber-600 mt-1">{stats?.paused ?? 0}</div>
-          <span className="text-[11px] text-slate-400">Temporarily stopped</span>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-          <div className="flex justify-between items-center text-xs font-medium text-slate-500">
-            <span>LEADS ENROLLED</span>
-            <UserGroupIcon className="w-4 h-4 text-blue-500" />
-          </div>
-          <div className="text-xl font-bold text-blue-600 mt-1">{stats?.enrolled ?? 0}</div>
-          <span className="text-[11px] text-slate-400">Currently in sequence</span>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-          <div className="flex justify-between items-center text-xs font-medium text-slate-500">
-            <span>ACTIONS THIS WEEK</span>
-            <ClockIcon className="w-4 h-4 text-indigo-500" />
-          </div>
-          <div className="text-xl font-bold text-indigo-600 mt-1">{stats?.actionsThisWeek ?? 0}</div>
-          <span className="text-[11px] text-slate-400">Emails & tasks generated</span>
-        </div>
-      </div>
-
-      {/* Search & Filter Toolbar */}
-      <div className="px-6 py-2 bg-white border-y border-slate-200/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div className="flex flex-wrap items-center gap-2.5 flex-1">
+      {/* 3. TOOLBAR: SEARCH & FILTERS */}
+      <div className="px-6 py-3 bg-white border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-3 flex-1">
           {/* Search Box */}
-          <div className="relative min-w-[220px] flex-1 sm:flex-none">
+          <div className="relative min-w-[240px]">
             <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search automations..."
+              placeholder="Search workflow rules..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-slate-800"
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-slate-800 font-medium"
             />
             {search && (
               <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -270,6 +255,17 @@ export default function Automations() {
               </button>
             )}
           </div>
+
+          {/* Module Filter */}
+          <select
+            value={moduleFilter}
+            onChange={(e) => setModuleFilter(e.target.value)}
+            className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="all">All Modules</option>
+            <option value="leads">Leads</option>
+            <option value="deals">Deals / Pipeline</option>
+          </select>
 
           {/* Status Filter */}
           <select
@@ -279,8 +275,7 @@ export default function Automations() {
           >
             <option value="all">All Statuses</option>
             <option value="active">Active Only</option>
-            <option value="paused">Paused Only</option>
-            <option value="draft">Draft Only</option>
+            <option value="paused">Inactive Only</option>
           </select>
 
           {/* Trigger Filter */}
@@ -290,222 +285,254 @@ export default function Automations() {
             className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="all">All Triggers</option>
-            <option value="new_lead">New Lead Created</option>
-            <option value="stage_changed">Stage Changed</option>
-            <option value="assigned">Assigned</option>
+            <option value="new_lead">On Lead Create</option>
+            <option value="stage_changed">On Stage Change</option>
+            <option value="assigned">On Lead Assigned</option>
           </select>
 
-          {/* Clear Filters */}
-          {(statusFilter !== 'all' || triggerFilter !== 'all' || search) && (
+          {(statusFilter !== 'all' || triggerFilter !== 'all' || moduleFilter !== 'all' || search) && (
             <button
               onClick={() => {
                 setStatusFilter('all');
                 setTriggerFilter('all');
+                setModuleFilter('all');
                 setSearch('');
               }}
-              className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded hover:bg-indigo-50 transition-colors"
+              className="text-xs text-indigo-600 hover:text-indigo-800 font-bold px-2 py-1 rounded hover:bg-indigo-50 transition-colors"
             >
               Clear filters
             </button>
           )}
         </div>
 
-        <button
-          onClick={() => setIsActivityOpen(prev => !prev)}
-          className="text-xs text-slate-600 hover:text-slate-900 font-semibold flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-        >
-          <ClockIcon className="w-4 h-4 text-slate-500" />
-          {isActivityOpen ? 'Hide Activity Feed' : 'Live Activity Stream'}
-        </button>
+        <div className="text-xs text-slate-400 font-medium">
+          Showing <strong>{automations.length}</strong> rules
+        </div>
       </div>
 
-      {/* Live Activity Feed Collapsible Banner */}
-      {isActivityOpen && (
-        <div className="bg-slate-900 text-white px-6 py-3 border-b border-slate-800 shrink-0 max-h-48 overflow-y-auto">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              Live Execution Activity Feed
-            </span>
-            <button onClick={() => setIsActivityOpen(false)} className="text-slate-400 hover:text-white">
-              <XMarkIcon className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="space-y-1.5 text-xs">
-            {activityFeed.map((item) => (
-              <div key={item.id} className="flex justify-between items-center text-slate-300">
-                <div className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${item.status === 'success' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-                  <span className="font-bold text-white">{item.automationName}</span>
-                  <span className="text-slate-400">→</span>
-                  <span>{item.details || item.action}</span>
-                  {item.client && (
-                    <a href={`/clients/${item.client._id}`} className="text-blue-400 hover:underline">
-                      ({item.client.name})
-                    </a>
-                  )}
-                </div>
-                <span className="text-[10px] text-slate-500">
-                  {formatDistanceToNow(new Date(item.executedAt), { addSuffix: true })}
-                </span>
-              </div>
-            ))}
-            {activityFeed.length === 0 && (
-              <p className="text-slate-500 italic text-xs">No recent execution activity logged yet.</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* MAIN MANAGEMENT TABLE AREA */}
+      {/* 4. MAIN TAB CONTENTS */}
       <div className="flex-1 overflow-y-auto p-6 min-h-0">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-3"></div>
-            <p className="text-xs font-medium">Loading CRM automations...</p>
-          </div>
-        ) : automations.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center max-w-md mx-auto my-8 shadow-sm">
-            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-indigo-100">
-              <SparklesIcon className="w-6 h-6" />
+        {activeTab === 'rules' ? (
+          loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-3"></div>
+              <p className="text-xs font-medium">Loading workflow rules...</p>
             </div>
-            <h3 className="text-base font-bold text-slate-900 mb-1">No automations found</h3>
-            <p className="text-xs text-slate-500 mb-6">
-              {search || statusFilter !== 'all' 
-                ? 'No automations match your filter criteria.' 
-                : 'Create your first workflow to automate lead follow-ups and emails.'}
-            </p>
-            <button
-              onClick={() => navigate('/automations/new')}
-              className="inline-flex items-center gap-2 bg-indigo-600 text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-all"
-            >
-              <PlusIcon className="w-4 h-4" />
-              Create Automation
-            </button>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[800px]">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="py-3 px-4">Automation</th>
-                    <th className="py-3 px-4">Trigger</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">Enrolled</th>
-                    <th className="py-3 px-4">Steps</th>
-                    <th className="py-3 px-4">Last Activity</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
-                  {automations.map((auto) => {
-                    const enrolledCount = auto.stats?.enrolled || 0;
-                    const activeCount = auto.stats?.active || 0;
-                    const stepCount = auto.steps?.length || 0;
-                    const lastRunText = auto.stats?.lastActivityAt 
-                      ? formatDistanceToNow(new Date(auto.stats.lastActivityAt), { addSuffix: true })
-                      : 'Never';
+          ) : automations.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center max-w-md mx-auto my-8 shadow-xs">
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-indigo-100">
+                <BoltIcon className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900 mb-1">No workflow rules found</h3>
+              <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+                {search || statusFilter !== 'all' 
+                  ? 'No workflow rules match your search or filter options.' 
+                  : 'Create your first workflow rule to perform automatic actions like sending emails or creating tasks.'}
+              </p>
+              <button
+                onClick={() => navigate('/automations/new')}
+                className="inline-flex items-center gap-2 bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-all shadow-sm"
+              >
+                <PlusIcon className="w-4 h-4" />
+                Create Rule
+              </button>
+            </div>
+          ) : (
+            /* WORKFLOW RULES TABLE (ZOHO STYLE) */
+            <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3 px-4 w-10">
+                        <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                      </th>
+                      <th className="py-3 px-4">Rule Name</th>
+                      <th className="py-3 px-4">Applies To</th>
+                      <th className="py-3 px-4">Execute On</th>
+                      <th className="py-3 px-4">Actions</th>
+                      <th className="py-3 px-4">Modified On</th>
+                      <th className="py-3 px-4 text-center">Status</th>
+                      <th className="py-3 px-4 text-right">Options</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {automations.map((auto) => {
+                      const stepCount = auto.steps?.length || 0;
+                      const modifiedDate = formatModifiedDate(auto.updatedAt || auto.createdAt);
 
-                    return (
-                      <tr
-                        key={auto._id}
-                        onClick={(e) => handleViewDetails(auto, e)}
-                        className="hover:bg-slate-50/80 transition-colors cursor-pointer"
-                      >
-                        <td className="py-3.5 px-4 max-w-[280px]">
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0 mt-0.5">
-                              <SparklesIcon className="w-4 h-4" />
+                      return (
+                        <tr
+                          key={auto._id}
+                          onClick={(e) => handleViewDetails(auto, e)}
+                          className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                        >
+                          {/* Checkbox */}
+                          <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
+                            <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                          </td>
+
+                          {/* Rule Name */}
+                          <td className="py-3.5 px-4 max-w-[280px]">
+                            <div>
+                              <span 
+                                onClick={(e) => { e.stopPropagation(); navigate(`/automations/${auto._id}/edit`); }} 
+                                className="font-bold text-indigo-600 hover:text-indigo-800 hover:underline block truncate text-sm"
+                              >
+                                {auto.name}
+                              </span>
+                              {auto.description && (
+                                <p className="text-[11px] text-slate-400 truncate mt-0.5">{auto.description}</p>
+                              )}
                             </div>
-                            <div className="min-w-0">
-                              <h4 className="font-bold text-slate-900 hover:text-indigo-600 truncate">{auto.name}</h4>
-                              <p className="text-[11px] text-slate-400 truncate mt-0.5">{auto.description || 'Automated follow-up sequence'}</p>
-                            </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                            {formatTriggerLabel(auto.trigger, auto.triggerConditions?.source)}
-                          </span>
-                        </td>
+                          {/* Applies To / Module */}
+                          <td className="py-3.5 px-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                              Leads
+                            </span>
+                          </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          {getStatusBadge(auto.isActive, auto.status)}
-                        </td>
+                          {/* Execute On / Trigger */}
+                          <td className="py-3.5 px-4 whitespace-nowrap text-slate-700 font-semibold">
+                            {formatExecuteOn(auto.trigger, auto.triggerConditions?.source)}
+                          </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          <span className="font-bold text-slate-900">{enrolledCount}</span>
-                          <span className="text-slate-400 text-[11px] ml-1">({activeCount} active)</span>
-                        </td>
+                          {/* Actions Count */}
+                          <td className="py-3.5 px-4 whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 font-bold text-slate-700 bg-indigo-50/70 text-indigo-700 border border-indigo-100 px-2.5 py-0.5 rounded-full text-[11px]">
+                              {stepCount} {stepCount === 1 ? 'action' : 'actions'}
+                            </span>
+                          </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          <span className="font-semibold text-slate-700 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-[11px]">
-                            {stepCount} {stepCount === 1 ? 'step' : 'steps'}
-                          </span>
-                        </td>
+                          {/* Modified On */}
+                          <td className="py-3.5 px-4 whitespace-nowrap text-slate-500">
+                            {modifiedDate}
+                          </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap text-slate-500">
-                          {lastRunText}
-                        </td>
-
-                        <td className="py-3.5 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-1.5">
-                            {/* Toggle Active / Pause */}
+                          {/* Status Toggle Switch */}
+                          <td className="py-3.5 px-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={(e) => handleToggleStatus(auto._id, auto.isActive, e)}
-                              className={`p-1.5 rounded-lg border transition-all ${auto.isActive ? 'text-amber-600 bg-amber-50 hover:bg-amber-100 border-amber-200' : 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border-emerald-200'}`}
-                              title={auto.isActive ? 'Pause Automation' : 'Activate Automation'}
+                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                auto.isActive ? 'bg-emerald-500' : 'bg-slate-300'
+                              }`}
+                              title={auto.isActive ? 'Deactivate Rule' : 'Activate Rule'}
                             >
-                              {auto.isActive ? <PauseIcon className="w-4 h-4" /> : <PlayIcon className="w-4 h-4" />}
+                              <span
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                  auto.isActive ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                              />
                             </button>
+                          </td>
 
-                            {/* Duplicate */}
-                            <button
-                              onClick={(e) => handleDuplicate(auto._id, e)}
-                              className="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 border border-slate-200 transition-colors"
-                              title="Duplicate Automation"
-                            >
-                              <DocumentDuplicateIcon className="w-4 h-4" />
-                            </button>
+                          {/* Options / Row Actions */}
+                          <td className="py-3.5 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Edit */}
+                              <button
+                                onClick={() => navigate(`/automations/${auto._id}/edit`)}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 transition-colors"
+                                title="Edit Workflow Rule"
+                              >
+                                <PencilSquareIcon className="w-4 h-4" />
+                              </button>
 
-                            {/* Edit */}
-                            <button
-                              onClick={() => navigate(`/automations/${auto._id}/edit`)}
-                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 transition-colors"
-                              title="Edit Automation Workflow"
-                            >
-                              <PencilSquareIcon className="w-4 h-4" />
-                            </button>
+                              {/* Duplicate */}
+                              <button
+                                onClick={(e) => handleDuplicate(auto._id, e)}
+                                className="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 border border-slate-200 transition-colors"
+                                title="Duplicate Rule"
+                              >
+                                <DocumentDuplicateIcon className="w-4 h-4" />
+                              </button>
 
-                            {/* Delete */}
-                            <button
-                              onClick={(e) => handleDelete(auto._id, auto.name, e)}
-                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg border border-rose-200 transition-colors"
-                              title="Delete Automation"
-                            >
-                              <TrashIcon className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                              {/* Delete */}
+                              <button
+                                onClick={(e) => handleDelete(auto, e)}
+                                className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg border border-rose-200 transition-colors"
+                                title="Delete Rule"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        ) : (
+          /* USAGE & EXECUTION HISTORY TAB */
+          <div className="space-y-6">
+            {/* Metric Summary Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Rules</div>
+                <div className="text-2xl font-bold text-emerald-600 mt-1">{stats?.active ?? 0}</div>
+                <span className="text-[11px] text-slate-400">Rules ready to trigger</span>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Enrolled Leads</div>
+                <div className="text-2xl font-bold text-blue-600 mt-1">{stats?.enrolled ?? 0}</div>
+                <span className="text-[11px] text-slate-400">Leads processed by rules</span>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Actions Executed This Week</div>
+                <div className="text-2xl font-bold text-indigo-600 mt-1">{stats?.actionsThisWeek ?? 0}</div>
+                <span className="text-[11px] text-slate-400">Automated emails & task logs</span>
+              </div>
+            </div>
+
+            {/* Execution Stream Table */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden p-6">
+              <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <ClockIcon className="w-4 h-4 text-indigo-600" />
+                Live Execution Logs
+              </h3>
+
+              <div className="space-y-3 text-xs">
+                {activityFeed.map((item) => (
+                  <div key={item.id} className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className={`w-2 h-2 rounded-full ${item.status === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                      <span className="font-bold text-slate-900">{item.automationName}</span>
+                      <span className="text-slate-400">→</span>
+                      <span className="text-slate-700">{item.details || item.action}</span>
+                      {item.client && (
+                        <a href={`/clients/${item.client._id}`} className="text-indigo-600 font-semibold hover:underline">
+                          ({item.client.name})
+                        </a>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-400">
+                      {formatDistanceToNow(new Date(item.executedAt), { addSuffix: true })}
+                    </span>
+                  </div>
+                ))}
+                {activityFeed.length === 0 && (
+                  <p className="text-slate-500 italic text-xs py-4 text-center">No execution log history recorded yet.</p>
+                )}
+              </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* AUTOMATION DETAILS & ENROLLED LEADS SLIDE-OVER DRAWER */}
+      {/* WORKFLOW RULE DETAILS SLIDE-OVER DRAWER */}
       {selectedAutomation && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex justify-end">
-          <div className="bg-white w-full max-w-xl h-full flex flex-col shadow-2xl border-l border-slate-200 overflow-hidden animate-slide-in">
-            <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50/80">
+          <div className="bg-white w-full max-w-xl h-full flex flex-col shadow-2xl border-l border-slate-200 overflow-hidden">
+            <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
               <div>
-                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Automation Details</span>
+                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Workflow Details</span>
                 <h2 className="text-base font-bold text-slate-900 leading-snug mt-0.5">{selectedAutomation.name}</h2>
               </div>
               <button onClick={() => setSelectedAutomation(null)} className="text-slate-400 hover:text-slate-600">
@@ -514,91 +541,87 @@ export default function Automations() {
             </div>
 
             <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
-              {/* Trigger & Settings Card */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              {/* Trigger Card */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Trigger Specification</span>
-                  {getStatusBadge(selectedAutomation.isActive, selectedAutomation.status)}
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Execute On</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${selectedAutomation.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}`}>
+                    {selectedAutomation.isActive ? 'Active' : 'Inactive'}
+                  </span>
                 </div>
-                <p className="font-semibold text-slate-800">
-                  {formatTriggerLabel(selectedAutomation.trigger, selectedAutomation.triggerConditions?.source)}
+                <p className="font-bold text-slate-800 text-sm">
+                  {formatExecuteOn(selectedAutomation.trigger, selectedAutomation.triggerConditions?.source)}
                 </p>
                 {selectedAutomation.description && (
-                  <p className="text-slate-500 italic">{selectedAutomation.description}</p>
+                  <p className="text-slate-500 italic mt-1">{selectedAutomation.description}</p>
                 )}
               </div>
 
-              {/* Visual Workflow Steps Preview */}
+              {/* Action Sequence */}
               <div>
-                <h4 className="font-bold text-slate-800 mb-3">Workflow Sequence ({selectedAutomation.steps?.length || 0} Steps)</h4>
+                <h4 className="font-bold text-slate-800 mb-3">Workflow Actions ({selectedAutomation.steps?.length || 0})</h4>
                 <div className="space-y-3 pl-3 border-l-2 border-indigo-200">
                   {selectedAutomation.steps?.map((step, index) => (
-                    <div key={index} className="relative pl-4 bg-white p-3 border border-slate-200 rounded-lg shadow-xs">
+                    <div key={index} className="relative pl-4 bg-white p-3 border border-slate-200 rounded-lg shadow-2xs">
                       <div className="absolute -left-[19px] top-3.5 w-3 h-3 rounded-full bg-indigo-600 ring-4 ring-white" />
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-slate-900 capitalize">{step.order}. {step.action.replace('_', ' ')}</span>
-                      </div>
+                      <div className="font-bold text-slate-900 capitalize">{step.order}. {step.action.replace('_', ' ')}</div>
                       {step.action === 'send_email' && (
-                        <p className="text-[11px] text-slate-500 mt-1">Send Template ID: {step.config?.templateId || 'Welcome Email'}</p>
+                        <p className="text-[11px] text-slate-500 mt-1">Send Email Template</p>
                       )}
                       {step.action === 'wait' && (
-                        <p className="text-[11px] text-slate-500 mt-1">Delay: {step.config?.delayValue} {step.config?.delayUnit}</p>
+                        <p className="text-[11px] text-slate-500 mt-1">Wait {step.config?.delayValue} {step.config?.delayUnit}</p>
                       )}
                       {step.action === 'create_task' && (
-                        <p className="text-[11px] text-slate-500 mt-1">Task: "{step.config?.title}" (Due in {step.config?.dueInValue} {step.config?.dueInUnit})</p>
+                        <p className="text-[11px] text-slate-500 mt-1">Create Task: "{step.config?.title}"</p>
                       )}
                     </div>
                   ))}
                 </div>
               </div>
-
-              {/* Enrolled Leads List */}
-              <div>
-                <h4 className="font-bold text-slate-800 mb-3">
-                  Enrolled Leads ({automationDetails?.executions?.length || 0})
-                </h4>
-                {loadingDetails ? (
-                  <p className="text-slate-400 text-xs animate-pulse">Loading enrolled leads...</p>
-                ) : (
-                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                    {(automationDetails?.executions || []).map((exec) => (
-                      <div key={exec._id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center">
-                        <div>
-                          {exec.client ? (
-                            <a href={`/clients/${exec.client._id}`} className="font-bold text-blue-600 hover:underline block">
-                              {exec.client.fullName}
-                            </a>
-                          ) : (
-                            <span className="text-slate-400 italic">Lead record removed</span>
-                          )}
-                          <span className="text-[10px] text-slate-400">Step {exec.currentStepIndex + 1} of {selectedAutomation.steps?.length}</span>
-                        </div>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${exec.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}`}>
-                          {exec.status}
-                        </span>
-                      </div>
-                    ))}
-                    {(!automationDetails?.executions || automationDetails.executions.length === 0) && (
-                      <p className="text-slate-400 text-xs italic">No leads currently enrolled in this sequence.</p>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
 
-            {/* Bottom Actions */}
             <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
               <button
                 onClick={() => navigate(`/automations/${selectedAutomation._id}/edit`)}
-                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm text-center"
+                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-xs text-center"
               >
-                Edit Workflow
+                Edit Rule
               </button>
               <button
                 onClick={() => setSelectedAutomation(null)}
-                className="px-4 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg"
+                className="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg text-xs"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {automationToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-100">
+            <div className="w-12 h-12 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 mb-4">
+              <TrashIcon className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 leading-tight">Delete Workflow Rule?</h3>
+            <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+              Are you sure you want to delete <strong className="text-slate-800">'{automationToDelete.name}'</strong>? 
+              This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-3 mt-6">
+              <button
+                onClick={() => setAutomationToDelete(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteAutomation}
+                className="px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-xs transition-all"
+              >
+                Delete Rule
               </button>
             </div>
           </div>

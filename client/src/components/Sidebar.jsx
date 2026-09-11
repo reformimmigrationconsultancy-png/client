@@ -6,14 +6,15 @@ import {
   UserGroupIcon,
   Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
-  SparklesIcon
+  SparklesIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Leads Pipeline', href: '/leads', icon: UserGroupIcon },
   { name: 'Follow-ups', href: '/followups', icon: Cog6ToothIcon },
-  { name: 'Automations', href: '/automations', icon: SparklesIcon },
+  { name: 'Workflow Rules', href: '/automations', icon: BoltIcon },
   { name: 'Email Templates', href: '/templates', icon: SparklesIcon },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];
