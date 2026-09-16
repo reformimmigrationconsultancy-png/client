@@ -7,7 +7,7 @@ const hasLeadPrefix = pathname === '/lead' || pathname.startsWith('/lead/');
 
 export const BACKEND_URL = isDev
   ? `${window.location.protocol}//${window.location.hostname}:8000`
-  : import.meta.env.VITE_BACKEND_URL || 'https://server-64xz.onrender.com';
+  : import.meta.env.VITE_BACKEND_URL || 'https://server-d8dt.onrender.com';
 
 const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,
