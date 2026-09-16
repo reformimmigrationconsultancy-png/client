@@ -10,7 +10,7 @@ export const BACKEND_URL = isDev
   : import.meta.env.VITE_BACKEND_URL || 'https://server-d8dt.onrender.com';
 
 const api = axios.create({
-  baseURL: `${BACKEND_URL}/api`,
+  baseURL: `${BACKEND_URL.replace(/\/+$/, '')}/api`,
 });
 
 api.interceptors.request.use(
