@@ -12,8 +12,8 @@ export const SUPPORTED_VARIABLES = [
   { tag: '{{company}}', key: 'company', category: 'Lead', label: 'Company', example: 'Acme Corp' },
   { tag: '{{lead_source}}', key: 'lead_source', category: 'Lead', label: 'Lead Source', example: 'Meta Ads' },
   { tag: '{{lead_stage}}', key: 'lead_stage', category: 'Lead', label: 'Lead Stage', example: 'Contacted' },
-  { tag: '{{assigned_to}}', key: 'assigned_to', category: 'Assignment', label: 'Assigned To', example: 'Manpreet Singh' },
-  { tag: '{{admin_name}}', key: 'admin_name', category: 'CRM', label: 'Admin Name', example: 'Manpreet Singh' },
+  { tag: '{{assigned_to}}', key: 'assigned_to', category: 'Assignment', label: 'Assigned To', example: 'Maninder Pal Singh' },
+  { tag: '{{admin_name}}', key: 'admin_name', category: 'CRM', label: 'Admin Name', example: 'Maninder Pal Singh' },
 ];
 
 export const VALID_VARIABLE_TAGS = new Set([
@@ -41,7 +41,7 @@ export const SAMPLE_LEAD_DATA = {
   company: 'Sample Enterprise Inc.',
   source: 'Website Form (Sample)',
   stage: 'New Lead',
-  assignedTo: { name: 'Manpreet Singh' }
+  assignedTo: { name: 'Maninder Pal Singh' }
 };
 
 export function extractNameComponents(lead) {
@@ -65,7 +65,7 @@ export function extractNameComponents(lead) {
 /**
  * Resolves all variables in a template string dynamically against lead data.
  */
-export function resolveVariables(text, lead = null, adminName = 'Manpreet Singh') {
+export function resolveVariables(text, lead = null, adminName = 'Maninder Pal Singh') {
   if (!text || typeof text !== 'string') return '';
 
   const { fullName, firstName, lastName } = extractNameComponents(lead);
@@ -147,7 +147,7 @@ export function validateVariables(text) {
 /**
  * Generates resolved variable dictionary for preview display.
  */
-export function getVariableDictionary(lead = null, adminName = 'Manpreet Singh') {
+export function getVariableDictionary(lead = null, adminName = 'Maninder Pal Singh') {
   const { fullName, firstName, lastName } = extractNameComponents(lead);
 
   let assignedTo = 'Support Team';

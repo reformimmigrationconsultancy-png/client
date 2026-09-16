@@ -28,7 +28,7 @@ export default function Sidebar({ onClose }) {
   const { user, logout } = useAuth();
 
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'M';
-  const userName = user?.name || 'Manpreet Singh';
+  const userName = user?.name || 'Maninder Pal Singh';
 
   return (
     <div className="flex w-64 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white h-full">
@@ -40,7 +40,7 @@ export default function Sidebar({ onClose }) {
           </div>
           <div>
             <h1 className="text-[14px] font-bold text-slate-900 tracking-tight leading-none">
-              Manpreet CRM
+              Maninder Pal Singh
             </h1>
           </div>
         </div>
