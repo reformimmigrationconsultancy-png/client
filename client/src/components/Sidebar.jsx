@@ -7,12 +7,14 @@ import {
   Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
   SparklesIcon,
-  BoltIcon
+  BoltIcon,
+  ViewColumnsIcon
 } from '@heroicons/react/24/outline';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
-  { name: 'Leads Pipeline', href: '/leads', icon: UserGroupIcon },
+  { name: 'Leads List', href: '/leads', icon: UserGroupIcon },
+  { name: 'Pipeline View', href: '/kanban', icon: ViewColumnsIcon },
   { name: 'Follow-ups', href: '/followups', icon: Cog6ToothIcon },
   { name: 'Workflow Rules', href: '/automations', icon: BoltIcon },
   { name: 'Email Templates', href: '/templates', icon: SparklesIcon },
