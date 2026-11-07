@@ -15,6 +15,7 @@ import EmailTemplates from './pages/EmailTemplates';
 import EmailTemplateEditor from './pages/EmailTemplateEditor';
 import FollowUps from './pages/FollowUps';
 import KanbanBoard from './pages/KanbanBoard';
+import ClientPortal from './pages/ClientPortal';
 
 function App() {
   const pathname = window.location.pathname;
@@ -25,6 +26,9 @@ function App() {
         <Toaster position="top-right" />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/portal/:token" element={<ClientPortal />} />
+          <Route path="/apply" element={<ClientPortal isPublic={true} />} />
+          <Route path="/intake" element={<ClientPortal isPublic={true} />} />
           
           <Route element={<Layout />}>
              <Route path="/" element={<Dashboard />} />

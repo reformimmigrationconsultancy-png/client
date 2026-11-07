@@ -8,7 +8,7 @@ import {
   CheckIcon, 
   XMarkIcon, 
   ClockIcon, 
-  SparklesIcon, 
+  BoltIcon, 
   EnvelopeIcon, 
   UserIcon,
   ChevronRightIcon
@@ -140,7 +140,7 @@ export default function NotificationBell({ socket }) {
   };
 
   const getTypeIcon = (type) => {
-    if (type === 'automation') return <SparklesIcon className="w-4 h-4 text-purple-600" />;
+    if (type === 'automation') return <BoltIcon className="w-4 h-4 text-purple-600" />;
     if (type === 'email') return <EnvelopeIcon className="w-4 h-4 text-blue-600" />;
     if (type === 'lead') return <UserIcon className="w-4 h-4 text-emerald-600" />;
     return <ClockIcon className="w-4 h-4 text-amber-600" />;

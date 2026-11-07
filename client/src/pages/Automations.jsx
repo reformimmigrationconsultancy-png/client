@@ -3,16 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { toast } from 'react-hot-toast';
 import { format, formatDistanceToNow } from 'date-fns';
-import { 
-  PlayIcon, 
-  PauseIcon, 
-  PlusIcon, 
-  DocumentDuplicateIcon, 
-  TrashIcon, 
-  ClockIcon, 
-  SparklesIcon, 
-  MagnifyingGlassIcon, 
-  XMarkIcon, 
+import {
+  PlayIcon,
+  PauseIcon,
+  PlusIcon,
+  DocumentDuplicateIcon,
+  TrashIcon,
+  ClockIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
   PencilSquareIcon,
   EyeIcon,
   BoltIcon,
@@ -197,21 +196,19 @@ export default function Automations() {
         <div className="flex items-center gap-8 border-b border-transparent">
           <button
             onClick={() => setActiveTab('rules')}
-            className={`pb-3 text-xs font-bold transition-all relative ${
-              activeTab === 'rules'
+            className={`pb-3 text-xs font-bold transition-all relative ${activeTab === 'rules'
                 ? 'text-indigo-600 border-b-2 border-indigo-600'
                 : 'text-slate-500 hover:text-slate-800'
-            }`}
+              }`}
           >
             Rules ({automations.length})
           </button>
           <button
             onClick={() => setActiveTab('usage')}
-            className={`pb-3 text-xs font-bold transition-all relative ${
-              activeTab === 'usage'
+            className={`pb-3 text-xs font-bold transition-all relative ${activeTab === 'usage'
                 ? 'text-indigo-600 border-b-2 border-indigo-600'
                 : 'text-slate-500 hover:text-slate-800'
-            }`}
+              }`}
           >
             Usage & Execution History
           </button>
@@ -325,8 +322,8 @@ export default function Automations() {
               </div>
               <h3 className="text-base font-bold text-slate-900 mb-1">No workflow rules found</h3>
               <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-                {search || statusFilter !== 'all' 
-                  ? 'No workflow rules match your search or filter options.' 
+                {search || statusFilter !== 'all'
+                  ? 'No workflow rules match your search or filter options.'
                   : 'Create your first workflow rule to perform automatic actions like sending emails or creating tasks.'}
               </p>
               <button
@@ -375,8 +372,8 @@ export default function Automations() {
                           {/* Rule Name */}
                           <td className="py-3.5 px-4 max-w-[280px]">
                             <div>
-                              <span 
-                                onClick={(e) => { e.stopPropagation(); navigate(`/automations/${auto._id}/edit`); }} 
+                              <span
+                                onClick={(e) => { e.stopPropagation(); navigate(`/automations/${auto._id}/edit`); }}
                                 className="font-bold text-indigo-600 hover:text-indigo-800 hover:underline block truncate text-sm"
                               >
                                 {auto.name}
@@ -415,15 +412,13 @@ export default function Automations() {
                           <td className="py-3.5 px-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={(e) => handleToggleStatus(auto._id, auto.isActive, e)}
-                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                auto.isActive ? 'bg-emerald-500' : 'bg-slate-300'
-                              }`}
+                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${auto.isActive ? 'bg-emerald-500' : 'bg-slate-300'
+                                }`}
                               title={auto.isActive ? 'Deactivate Rule' : 'Activate Rule'}
                             >
                               <span
-                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                                  auto.isActive ? 'translate-x-5' : 'translate-x-0'
-                                }`}
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${auto.isActive ? 'translate-x-5' : 'translate-x-0'
+                                  }`}
                               />
                             </button>
                           </td>
@@ -607,7 +602,7 @@ export default function Automations() {
             </div>
             <h3 className="text-lg font-bold text-slate-900 leading-tight">Delete Workflow Rule?</h3>
             <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-              Are you sure you want to delete <strong className="text-slate-800">'{automationToDelete.name}'</strong>? 
+              Are you sure you want to delete <strong className="text-slate-800">'{automationToDelete.name}'</strong>?
               This action cannot be undone.
             </p>
             <div className="flex items-center justify-end gap-3 mt-6">

@@ -17,7 +17,12 @@ import {
   ArrowLeftIcon,
   ChevronDownIcon,
   BriefcaseIcon,
-  TrashIcon
+  TrashIcon,
+  LinkIcon,
+  GlobeAmericasIcon,
+  AcademicCapIcon,
+  DocumentArrowUpIcon,
+  ShareIcon
 } from '@heroicons/react/24/outline';
 
 export default function ClientProfile() {
@@ -146,6 +151,36 @@ export default function ClientProfile() {
     }
   };
 
+  const getPortalLink = async () => {
+    if (client.portalToken) {
+      return `${window.location.origin}/portal/${client.portalToken}`;
+    }
+    try {
+      const res = await api.get(`/portal/client/${id}/link`);
+      if (res.data.success && res.data.portalToken) {
+        setClient(prev => ({ ...prev, portalToken: res.data.portalToken }));
+        return `${window.location.origin}/portal/${res.data.portalToken}`;
+      }
+    } catch (e) {}
+    return `${window.location.origin}/portal/${client._id}`;
+  };
+
+  const handleCopyPortalLink = async () => {
+    const link = await getPortalLink();
+    navigator.clipboard.writeText(link);
+    toast.success('📋 Secure Client Intake link copied to clipboard!');
+  };
+
+  const handleSendWhatsApp = async () => {
+    const link = await getPortalLink();
+    const cleanPhone = (client.phone || '').replace(/[^0-9]/g, '');
+    const message = `Hello ${client.fullName},\n\nPlease complete your Visa Assessment & Document submission using this secure link:\n${link}\n\nThank you,\nManinder Pal Singh Immigration Services`;
+    const waUrl = cleanPhone 
+      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
+      : `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank');
+  };
+
   if (loading) return <div className="p-8 text-slate-500 font-medium">Loading profile...</div>;
   if (!client) return <div className="p-8 text-red-500">Client not found</div>;
 
@@ -181,21 +216,39 @@ export default function ClientProfile() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button 
+            onClick={handleCopyPortalLink}
+            title="Copy client's unique intake portal link"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[13px] font-bold shadow-2xs transition-all"
+          >
+            <LinkIcon className="w-4 h-4" />
+            <span>Copy Intake Link</span>
+          </button>
+
+          <button 
+            onClick={handleSendWhatsApp}
+            title="Send portal link directly to client on WhatsApp"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[13px] font-bold shadow-2xs transition-all"
+          >
+            <ChatBubbleLeftRightIcon className="w-4 h-4" />
+            <span>Send on WhatsApp</span>
+          </button>
+
           <button 
             onClick={() => navigate(`/followups?leadId=${id}`)}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-bold text-[13px] shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-all"
+            className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg font-bold text-[13px] shadow-2xs transition-all"
           >
             <ClockIcon className="w-4 h-4" />
-            + Add Follow-up
+            + Follow-up
           </button>
 
           <button 
             onClick={() => setIsEditModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-2xs transition-all"
           >
             <PencilSquareIcon className="w-4 h-4 text-slate-400" />
-            Edit Profile
+            Edit
           </button>
 
           <button 
@@ -204,15 +257,6 @@ export default function ClientProfile() {
             title="Delete Lead"
           >
             <TrashIcon className="w-4 h-4 text-rose-500" />
-            Delete Lead
-          </button>
-          
-          <button 
-            onClick={() => toast.success('Message feature coming soon!')}
-            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg font-bold text-[13px] shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-all"
-          >
-            <ChatBubbleLeftRightIcon className="w-4 h-4" />
-            Message
           </button>
         </div>
       </div>
@@ -257,6 +301,133 @@ export default function ClientProfile() {
                   </span>
                 </div>
               </div>
+            </div>
+
+            {/* Visa & Intake Assessment Details Panel */}
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-6">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <GlobeAmericasIcon className="w-5 h-5 text-indigo-600" />
+                  <h2 className="text-[13px] font-bold text-slate-900 uppercase tracking-widest">
+                    Visa Application & Intake Details
+                  </h2>
+                </div>
+
+                {client.portalStatus === 'submitted' ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600" />
+                    Submitted via Portal {client.portalSubmittedAt ? `(${format(new Date(client.portalSubmittedAt), 'MMM d, h:mm a')})` : ''}
+                  </span>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                      Intake Pending
+                    </span>
+                    <button
+                      onClick={handleCopyPortalLink}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-bold underline"
+                    >
+                      Copy Link
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Target Country</span>
+                  <span className="text-[14px] font-bold text-slate-900">
+                    {client.visaDetails?.targetCountry || 'Not selected'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Visa Category</span>
+                  <span className="text-[14px] font-bold text-indigo-600">
+                    {client.visaDetails?.visaType || 'Study / General Visa'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Passport Number</span>
+                  <span className="text-[14px] font-medium text-slate-900">
+                    {client.visaDetails?.passportNumber ? (
+                      <span className="font-mono uppercase font-bold">{client.visaDetails.passportNumber} {client.visaDetails.passportExpiry ? `(Exp: ${client.visaDetails.passportExpiry})` : ''}</span>
+                    ) : 'Not provided'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Highest Qualification</span>
+                  <span className="text-[13px] font-medium text-slate-800">
+                    {client.visaDetails?.highestEducation || '—'} {client.visaDetails?.fieldOfStudy ? `in ${client.visaDetails.fieldOfStudy}` : ''}
+                    {client.visaDetails?.percentageOrCgpa ? ` (${client.visaDetails.percentageOrCgpa})` : ''}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">English Language Test</span>
+                  <span className="text-[13px] font-bold text-emerald-700">
+                    {client.visaDetails?.englishTest || '—'} {client.visaDetails?.overallScore ? `• ${client.visaDetails.overallScore}` : ''}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Work Experience</span>
+                  <span className="text-[13px] font-medium text-slate-800">
+                    {client.visaDetails?.workExperienceYears ? `${client.visaDetails.workExperienceYears} Years` : '0 Years'} {client.visaDetails?.currentJobTitle ? `(${client.visaDetails.currentJobTitle})` : ''}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Location / Address</span>
+                  <span className="text-[13px] font-medium text-slate-800">
+                    {[client.city, client.state, client.country].filter(Boolean).join(', ') || client.address || '—'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Visa Refusal History</span>
+                  <span className={`text-[13px] font-bold ${client.visaDetails?.hasVisaRefusal === 'Yes' ? 'text-rose-600' : 'text-slate-700'}`}>
+                    {client.visaDetails?.hasVisaRefusal === 'Yes' ? `⚠️ Yes (${client.visaDetails?.refusalDetails || 'Refusal noted'})` : 'None / Fresh Applicant'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Client Comments / Note</span>
+                  <span className="text-[13px] text-slate-600 italic">
+                    {client.visaDetails?.comments || 'No special requests'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Uploaded Documents List */}
+              {client.documents && client.documents.length > 0 && (
+                <div className="mt-5 pt-4 border-t border-slate-100">
+                  <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2.5">
+                    Attached Documents ({client.documents.length})
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                    {client.documents.map((doc, dIdx) => (
+                      <a
+                        key={dIdx}
+                        href={`${BACKEND_URL}/uploads/documents/${client._id}/${doc.filename}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 text-xs transition-all group"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <DocumentIcon className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 shrink-0" />
+                          <span className="font-semibold text-slate-800 group-hover:text-indigo-600 truncate">
+                            {doc.originalName || doc.filename}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-indigo-600 font-bold shrink-0 ml-1">View ↗</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Notes & Activity Section */}

@@ -18,7 +18,6 @@ import {
   ClipboardDocumentIcon,
   EyeIcon,
   EyeSlashIcon,
-  SparklesIcon,
   PaperAirplaneIcon,
   CodeBracketIcon,
 } from '@heroicons/react/24/outline';
@@ -274,7 +273,7 @@ function FacebookTokenPanel() {
           disabled={subscribing}
           className="p-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 hover:from-blue-700 hover:to-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          <SparklesIcon className="w-4 h-4" />
+          <ArrowPathIcon className="w-4 h-4" />
           <span>{subscribing ? 'Subscribing...' : '1. Subscribe Page to Webhooks'}</span>
         </button>
 

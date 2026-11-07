@@ -18,7 +18,7 @@ import {
   EyeIcon, 
   MagnifyingGlassIcon, 
   XMarkIcon, 
-  SparklesIcon, 
+  BoltIcon, 
   ClockIcon, 
   CheckCircleIcon, 
   ComputerDesktopIcon,
@@ -249,7 +249,7 @@ export default function EmailTemplates() {
         <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
           <div className="flex justify-between items-center text-xs font-medium text-slate-500">
             <span>IN AUTOMATIONS</span>
-            <SparklesIcon className="w-4 h-4 text-purple-500" />
+            <BoltIcon className="w-4 h-4 text-purple-500" />
           </div>
           <div className="text-xl font-bold text-purple-600 mt-1">{stats?.usedInAutomations ?? 0}</div>
           <span className="text-[11px] text-slate-400">Linked to sequences</span>
@@ -418,7 +418,7 @@ export default function EmailTemplates() {
                         <td className="py-3.5 px-4 whitespace-nowrap">
                           {usedInList.length > 0 ? (
                             <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded text-[11px] font-semibold">
-                              <SparklesIcon className="w-3 h-3 text-purple-500" />
+                              <BoltIcon className="w-3 h-3 text-purple-500" />
                               {usedInList.length} {usedInList.length === 1 ? 'automation' : 'automations'}
                             </span>
                           ) : (

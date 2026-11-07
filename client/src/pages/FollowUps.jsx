@@ -20,7 +20,8 @@ import {
   ListBulletIcon, 
   ArrowPathIcon, 
   XMarkIcon, 
-  SparklesIcon, 
+  TagIcon,
+  ChartBarIcon, 
   BellIcon, 
   EllipsisHorizontalIcon, 
   TrashIcon, 
@@ -40,7 +41,7 @@ const TYPE_CONFIG = {
   sms: { label: 'SMS', icon: ChatBubbleLeftRightIcon, color: 'text-indigo-600 bg-indigo-50 border-indigo-200' },
   task: { label: 'Task', icon: CheckCircleIcon, color: 'text-slate-600 bg-slate-100 border-slate-200' },
   note: { label: 'Note', icon: DocumentTextIcon, color: 'text-amber-600 bg-amber-50 border-amber-200' },
-  custom: { label: 'Custom', icon: SparklesIcon, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
+  custom: { label: 'Custom', icon: TagIcon, color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
 };
 
 const PRIORITY_CONFIG = {
@@ -521,7 +522,7 @@ export default function FollowUps() {
         <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] col-span-2 md:col-span-1">
           <div className="flex justify-between items-center text-xs font-medium text-slate-500">
             <span>COMPLETION RATE</span>
-            <SparklesIcon className="w-4 h-4 text-purple-500" />
+            <ChartBarIcon className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="text-xl font-bold text-slate-900 mt-1">{stats?.completionRate ?? 0}%</div>
           <span className="text-[11px] text-slate-400">Avg {stats?.avgCompletionHours || '0.0'}h turnaround</span>

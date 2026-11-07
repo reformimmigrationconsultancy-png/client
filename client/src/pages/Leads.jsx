@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api, { BACKEND_URL } from '../utils/api';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -12,13 +12,16 @@ import {
   FireIcon, 
   TrashIcon, 
   ExclamationTriangleIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  ArrowDownTrayIcon,
+  PhoneIcon,
+  LinkIcon
 } from '@heroicons/react/24/outline';
 import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/solid';
 import io from 'socket.io-client';
 
 const STAGES = {
-  new_lead: { id: 'new_lead', title: 'New Opportunity', color: 'blue', icon: '✨', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+  new_lead: { id: 'new_lead', title: 'New Opportunity', color: 'blue', icon: '🎯', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
   contacted: { id: 'contacted', title: 'Contacted', color: 'indigo', icon: '📞', bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
   interested: { id: 'interested', title: 'Negotiation', color: 'purple', icon: '🤝', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
   documents_received: { id: 'documents_received', title: 'Documentation', color: 'amber', icon: '📄', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
@@ -36,6 +39,7 @@ const SourceIcon = ({ source }) => {
 
 export default function Leads() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [columns, setColumns] = useState({});
   const [allLeads, setAllLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +62,21 @@ export default function Leads() {
   const [newLead, setNewLead] = useState({
     fullName: '', email: '', phone: '', source: 'facebook', stage: 'new_lead', loanAmount: '', propertyValue: ''
   });
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setIsAddModalOpen(true);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('action');
+        return next;
+      }, { replace: true });
+    }
+    const q = searchParams.get('search');
+    if (q) {
+      setSearchQuery(q);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetchLeads();
@@ -216,6 +235,52 @@ export default function Leads() {
     );
   };
 
+  const handleExportCSV = () => {
+    const listToExport = selectedLeadIds.length > 0 
+      ? allLeads.filter(l => selectedLeadIds.includes(l._id))
+      : filteredLeads;
+
+    if (!listToExport || listToExport.length === 0) {
+      toast.error('No leads available to export');
+      return;
+    }
+
+    const headers = ['Full Name', 'Email', 'Phone', 'Stage', 'Source', 'Deal Value', 'Created Date'];
+    const rows = listToExport.map(lead => [
+      `"${(lead.fullName || '').replace(/"/g, '""')}"`,
+      `"${(lead.email || '').replace(/"/g, '""')}"`,
+      `"${(lead.phone || '').replace(/"/g, '""')}"`,
+      `"${(lead.stage || '').replace(/"/g, '""')}"`,
+      `"${(lead.source || '').replace(/"/g, '""')}"`,
+      `"${lead.loanAmount || ''}"`,
+      `"${lead.createdAt ? format(new Date(lead.createdAt), 'yyyy-MM-dd HH:mm') : ''}"`
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `leads_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`Exported ${listToExport.length} lead${listToExport.length > 1 ? 's' : ''} to CSV`);
+  };
+
+  const handleCopyPublicIntake = () => {
+    const link = `${window.location.origin}/apply`;
+    navigator.clipboard.writeText(link);
+    toast.success('📋 Public Visa Application link copied! Send this link to any client.');
+  };
+
+  const handleCopyClientLink = (lead, e) => {
+    if (e) e.stopPropagation();
+    const token = lead.portalToken || lead._id;
+    const link = `${window.location.origin}/portal/${token}`;
+    navigator.clipboard.writeText(link);
+    toast.success(`📋 Copied intake link for ${lead.fullName}!`);
+  };
+
   if (loading) return (
     <div className="flex h-full items-center justify-center bg-slate-50">
       <div className="relative">
@@ -307,12 +372,30 @@ export default function Leads() {
           </button>
           
           <button 
+            onClick={handleCopyPublicIntake}
+            title="Copy public Visa Intake link to share with prospects"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[13px] font-bold shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all"
+          >
+            <LinkIcon className="w-3.5 h-3.5" />
+            <span>Share Visa Form</span>
+          </button>
+
+          <button 
             onClick={handleSyncMetaLeads}
             disabled={isSyncingMeta}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all disabled:opacity-50"
           >
             <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncingMeta ? 'animate-spin text-blue-500' : 'text-slate-400'}`} />
             <span>{isSyncingMeta ? 'Syncing...' : 'Sync Leads'}</span>
+          </button>
+
+          <button 
+            onClick={handleExportCSV}
+            title="Export leads to CSV"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all"
+          >
+            <ArrowDownTrayIcon className="w-3.5 h-3.5 text-slate-500" />
+            <span>Export CSV</span>
           </button>
           
           <button 
@@ -442,19 +525,41 @@ export default function Leads() {
                           {item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy') : '—'}
                         </td>
 
-                        {/* ACTIONS (Individual Lead Delete Icon Button) */}
+                        {/* ACTIONS */}
                         <td className="py-3 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                            <div className="flex items-center justify-end gap-1.5">
+                             {/* Copy Client Unique Link */}
+                             <button
+                               onClick={(e) => handleCopyClientLink(item, e)}
+                               className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-slate-200 hover:border-indigo-200 transition-all"
+                               title={`Copy intake link for ${item.fullName}`}
+                             >
+                               <LinkIcon className="w-3.5 h-3.5" />
+                             </button>
+
+                             {/* WhatsApp direct chat */}
+                             {item.phone && item.phone !== 'N/A' && (
+                               <a
+                                 href={`https://wa.me/${item.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${item.fullName}, please fill out your Visa assessment details here: ${window.location.origin}/portal/${item.portalToken || item._id}`)}`}
+                                 target="_blank"
+                                 rel="noopener noreferrer"
+                                 className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg border border-slate-200 hover:border-emerald-200 transition-all"
+                                 title="Send intake link on WhatsApp"
+                               >
+                                 <ChatBubbleLeftRightIcon className="w-3.5 h-3.5" />
+                                </a>
+                             )}
+
                              <button
                                onClick={() => setLeadToDelete(item)}
                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 hover:border-rose-200 transition-all"
                                title={`Delete lead ${item.fullName}`}
                              >
-                               <TrashIcon className="w-4 h-4" />
+                               <TrashIcon className="w-3.5 h-3.5" />
                              </button>
                              <button
                                onClick={() => navigate(`/clients/${item._id}`)}
-                               className="px-2 py-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors"
+                               className="px-2.5 py-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
                              >
                                Open &rarr;
                              </button>
@@ -502,6 +607,47 @@ export default function Leads() {
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Phone</label>
                   <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-600/20 outline-none" value={newLead.phone} onChange={e => setNewLead({...newLead, phone: e.target.value})} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Target Country</label>
+                  <select
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-600/20 outline-none cursor-pointer"
+                    value={newLead.visaDetails?.targetCountry || 'Canada'}
+                    onChange={e => setNewLead({
+                      ...newLead,
+                      visaDetails: { ...(newLead.visaDetails || {}), targetCountry: e.target.value }
+                    })}
+                  >
+                    <option value="Canada">🇨🇦 Canada</option>
+                    <option value="United Kingdom (UK)">🇬🇧 UK</option>
+                    <option value="Australia">🇦🇺 Australia</option>
+                    <option value="United States (USA)">🇺🇸 USA</option>
+                    <option value="Europe / Schengen">🇪🇺 Europe</option>
+                    <option value="New Zealand">🇳🇿 New Zealand</option>
+                    <option value="Germany">🇩🇪 Germany</option>
+                    <option value="Other">🌐 Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Visa Category</label>
+                  <select
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-600/20 outline-none cursor-pointer"
+                    value={newLead.visaDetails?.visaType || 'Study Visa / Student Permit'}
+                    onChange={e => setNewLead({
+                      ...newLead,
+                      visaDetails: { ...(newLead.visaDetails || {}), visaType: e.target.value }
+                    })}
+                  >
+                    <option value="Study Visa / Student Permit">🎓 Study Visa</option>
+                    <option value="Work Visa / Work Permit">💼 Work Permit</option>
+                    <option value="Permanent Residency (PR) / Express Entry">🏠 PR / Express Entry</option>
+                    <option value="Tourist / Visitor Visa">✈️ Visitor / Tourist</option>
+                    <option value="Spouse / Dependent Visa">💍 Spouse Visa</option>
+                    <option value="Business / Investor Visa">🏢 Business Visa</option>
+                    <option value="Other">🌍 Other</option>
+                  </select>
                 </div>
               </div>
               <div className="pt-4 flex gap-3">

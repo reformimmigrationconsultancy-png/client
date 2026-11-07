@@ -1,9 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, Navigate, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
 import { useAuth } from '../context/AuthContext';
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { 
+  Bars3Icon, 
+  XMarkIcon, 
+  MagnifyingGlassIcon, 
+  PlusIcon
+} from '@heroicons/react/24/outline';
 import io from 'socket.io-client';
 import api, { BACKEND_URL } from '../utils/api';
 import toast from 'react-hot-toast';
@@ -13,6 +18,8 @@ export default function Layout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [socket, setSocket] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef(null);
 
   const playNotificationSound = () => {
     try {
@@ -21,6 +28,18 @@ export default function Layout() {
       audio.play().catch(e => console.log('Audio play blocked:', e));
     } catch (err) {}
   };
+
+  // Keyboard shortcut for search (Ctrl+K or Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -86,7 +105,7 @@ export default function Layout() {
                 toast.dismiss(t.id);
                 navigate(`/followups?highlight=${reminderId}`);
               }}
-              className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-center shadow-2xs"
+              className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-center shadow-2xs"
             >
               Open
             </button>
@@ -143,10 +162,17 @@ export default function Layout() {
     };
   }, [user]);
 
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/leads?search=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex bg-slate-50 items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
@@ -156,9 +182,9 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex bg-slate-50 min-h-screen">
+    <div className="flex bg-slate-50 min-h-screen font-sans">
       {/* Desktop Sidebar */}
-      <div className="w-64 flex-shrink-0 hidden md:flex flex-col border-r shadow-sm">
+      <div className="w-64 flex-shrink-0 hidden md:flex flex-col border-r border-slate-200/80 shadow-2xs z-40">
         <Sidebar />
       </div>
 
@@ -167,7 +193,7 @@ export default function Layout() {
         <div className="md:hidden fixed inset-0 z-[100] flex">
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300"
             onClick={() => setSidebarOpen(false)}
           />
           
@@ -192,33 +218,78 @@ export default function Layout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         
-        {/* Top Floating Notification Header Bar */}
-        <div className="bg-white border-b border-slate-200/80 px-6 py-2 flex items-center justify-between shadow-2xs z-30">
-          <div className="flex items-center gap-2">
+        {/* Top Floating Modern Header Bar */}
+        <header className="bg-white border-b border-slate-200/80 px-4 md:px-6 py-2.5 flex items-center justify-between shadow-2xs z-30 shrink-0">
+          <div className="flex items-center gap-3 flex-1 max-w-xl">
             <button
               type="button"
-              className="md:hidden p-1.5 text-slate-500 hover:text-slate-600 focus:outline-none"
+              className="md:hidden p-2 -ml-1 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg focus:outline-none"
               onClick={() => setSidebarOpen(true)}
             >
               <Bars3Icon className="h-6 w-6" aria-hidden="true" />
             </button>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest hidden sm:inline-block">Commercial CRM System</span>
+
+            {/* Global Search Bar */}
+            <form onSubmit={handleSearchSubmit} className="relative w-full max-w-md hidden sm:block">
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <MagnifyingGlassIcon className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                </div>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search leads, phone, email..."
+                  className="block w-full rounded-lg border border-slate-200/80 bg-slate-50/70 py-1.5 pl-9 pr-12 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                />
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
+                  <kbd className="inline-flex items-center rounded border border-slate-200 bg-white px-1.5 font-sans text-[10px] font-semibold text-slate-400 shadow-2xs">
+                    Ctrl K
+                  </kbd>
+                </div>
+              </div>
+            </form>
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* Right Header Utilities */}
+          <div className="flex items-center gap-3">
+            {/* Live Socket Status */}
+            <div className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold border border-emerald-200/60">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              Live Sync
+            </div>
+
+            {/* Quick Add Lead Button */}
+            <button
+              onClick={() => navigate('/leads?action=new')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 rounded-lg shadow-2xs transition-all hover:shadow-xs"
+            >
+              <PlusIcon className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span className="hidden sm:inline">New Lead</span>
+            </button>
+
+            {/* Notification Bell */}
             <NotificationBell socket={socket} />
             
-            <div className="flex items-center gap-2 pl-3 border-l border-slate-200">
-              <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">
-                {user.name?.charAt(0) || 'A'}
+            {/* User Mini Profile */}
+            <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200/80">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shadow-2xs ring-2 ring-indigo-50">
+                {user.name?.charAt(0) || 'M'}
               </div>
-              <span className="text-xs font-semibold text-slate-800 hidden sm:inline-block">{user.name || 'Admin'}</span>
+              <div className="hidden md:flex flex-col">
+                <span className="text-xs font-bold text-slate-800 leading-tight">{user.name || 'Admin'}</span>
+                <span className="text-[10px] text-slate-400 font-medium">Administrator</span>
+              </div>
             </div>
           </div>
-        </div>
+        </header>
 
         {/* Outlet Area - Fixed to remaining space */}
-        <main className="flex-1 relative overflow-hidden flex flex-col min-h-0">
+        <main className="flex-1 relative overflow-hidden flex flex-col min-h-0 bg-slate-50/50">
           <Outlet context={{ socket }} />
         </main>
       </div>

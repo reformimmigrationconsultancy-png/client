@@ -7,7 +7,6 @@ import {
   PlusIcon, 
   TrashIcon, 
   PencilSquareIcon, 
-  SparklesIcon, 
   EnvelopeIcon, 
   ClockIcon, 
   CheckCircleIcon, 

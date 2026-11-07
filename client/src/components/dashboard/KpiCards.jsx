@@ -1,9 +1,11 @@
 import React from 'react';
 import { 
   UserGroupIcon, 
-  SparklesIcon, 
+  UserPlusIcon, 
   ChatBubbleLeftRightIcon, 
-  ExclamationTriangleIcon
+  ClockIcon,
+  ArrowUpRightIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 
 export default function KpiCards({ stats, reminders = [], onNavigateStage }) {
@@ -13,44 +15,57 @@ export default function KpiCards({ stats, reminders = [], onNavigateStage }) {
   
   const now = new Date();
   const actionItemsCount = reminders.filter(r => !r.isCompleted && new Date(r.dueDate) <= now).length;
+  const overdueCount = stats?.overdueFollowUps !== undefined ? stats.overdueFollowUps : actionItemsCount;
 
   const cards = [
     {
       id: 'total',
-      title: 'TOTAL LEADS',
+      title: 'TOTAL PROSPECTS',
       value: totalLeads,
-      trend: totalLeads > 0 ? 'Across all stages' : 'No leads yet',
-      subtitle: 'Active prospects in CRM',
+      trend: totalLeads > 0 ? 'Active in database' : 'Ready for leads',
+      subtitle: 'Across all pipeline stages',
       icon: UserGroupIcon,
-      accent: 'text-indigo-600',
+      colorTheme: 'from-indigo-500/10 to-indigo-500/5 text-indigo-600 border-indigo-100',
+      iconBg: 'bg-indigo-50 text-indigo-600',
+      badge: 'All Pipeline',
+      onClick: () => onNavigateStage && onNavigateStage('all')
     },
     {
       id: 'new',
       title: 'NEW LEADS',
       value: newLeads,
-      trend: newLeads > 0 ? 'Awaiting contact' : 'All caught up',
-      subtitle: 'Uncontacted leads',
-      icon: SparklesIcon,
-      accent: 'text-blue-600',
+      trend: newLeads > 0 ? 'Requires initial call' : 'All caught up',
+      subtitle: 'Uncontacted opportunities',
+      icon: UserPlusIcon,
+      colorTheme: 'from-blue-500/10 to-blue-500/5 text-blue-600 border-blue-100',
+      iconBg: 'bg-blue-50 text-blue-600',
+      badge: 'Immediate Action',
+      pulse: newLeads > 0,
       onClick: () => onNavigateStage && onNavigateStage('new_lead')
     },
     {
       id: 'conversations',
       title: 'CONVERSATIONS',
       value: openConvs,
-      trend: openConvs > 0 ? 'Need response' : 'Inbox clear',
-      subtitle: 'Open email threads',
+      trend: openConvs > 0 ? 'Active conversations' : 'Inbox clear',
+      subtitle: 'Open email & chat threads',
       icon: ChatBubbleLeftRightIcon,
-      accent: 'text-emerald-600',
+      colorTheme: 'from-emerald-500/10 to-emerald-500/5 text-emerald-600 border-emerald-100',
+      iconBg: 'bg-emerald-50 text-emerald-600',
+      badge: 'Engagement',
     },
     {
       id: 'attention',
-      title: 'ACTION ITEMS',
-      value: stats?.overdueFollowUps !== undefined ? stats.overdueFollowUps : actionItemsCount,
-      trend: (stats?.overdueFollowUps || actionItemsCount) > 0 ? `${stats?.overdueFollowUps || actionItemsCount} overdue follow-ups` : 'No urgent tasks',
-      subtitle: 'Click to open Work Center',
-      icon: ExclamationTriangleIcon,
-      accent: (stats?.overdueFollowUps || actionItemsCount) > 0 ? 'text-amber-600' : 'text-slate-400',
+      title: 'FOLLOW-UPS DUE',
+      value: overdueCount,
+      trend: overdueCount > 0 ? `${overdueCount} action items overdue` : 'All tasks up to date',
+      subtitle: 'Scheduled reminders & calls',
+      icon: ClockIcon,
+      colorTheme: overdueCount > 0 
+        ? 'from-rose-500/10 to-rose-500/5 text-rose-600 border-rose-100' 
+        : 'from-amber-500/10 to-amber-500/5 text-amber-600 border-amber-100',
+      iconBg: overdueCount > 0 ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600',
+      badge: overdueCount > 0 ? 'Needs Attention' : 'Healthy',
       onClick: () => window.location.href = '/followups'
     }
   ];
@@ -63,28 +78,47 @@ export default function KpiCards({ stats, reminders = [], onNavigateStage }) {
           <div
             key={card.id}
             onClick={card.onClick}
-            className={`bg-white rounded-xl p-5 border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-colors duration-200 flex flex-col ${
-              card.onClick ? 'cursor-pointer hover:bg-slate-50/50 hover:border-indigo-200' : ''
+            className={`group relative bg-white rounded-xl p-5 border border-slate-200/80 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col justify-between overflow-hidden ${
+              card.onClick ? 'cursor-pointer hover:border-indigo-300 hover:-translate-y-0.5' : ''
             }`}
           >
-            <div className="flex items-center gap-2 mb-4">
-              <IconComponent className={`w-4 h-4 ${card.accent}`} strokeWidth={2} />
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-none mt-0.5">
-                {card.title}
-              </span>
+            {/* Top Accent Bar on Hover */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-indigo-500/0 to-transparent group-hover:via-indigo-500/60 transition-all duration-300"></div>
+
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-lg ${card.iconBg} flex items-center justify-center shrink-0`}>
+                    <IconComponent className="w-4 h-4" strokeWidth={2} />
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    {card.title}
+                  </span>
+                </div>
+
+                {card.badge && (
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${card.colorTheme} flex items-center gap-1`}>
+                    {card.pulse && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></span>}
+                    {card.badge}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                  {card.value}
+                </span>
+                {card.onClick && (
+                  <ArrowUpRightIcon className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+                )}
+              </div>
             </div>
 
-            <div className="mb-3">
-              <span className="text-3xl font-bold text-slate-900 tracking-tight leading-none">
-                {card.value}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-0.5 mt-auto">
-              <span className="text-[12px] font-semibold text-slate-700">
+            <div className="pt-2 border-t border-slate-100 flex flex-col gap-0.5">
+              <span className="text-[12px] font-semibold text-slate-700 truncate">
                 {card.trend}
               </span>
-              <span className="text-[11px] text-slate-400 font-medium leading-relaxed">
+              <span className="text-[11px] text-slate-400 font-medium truncate">
                 {card.subtitle}
               </span>
             </div>

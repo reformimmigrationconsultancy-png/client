@@ -12,7 +12,6 @@ import {
 import { 
   ArrowLeftIcon, 
   CheckIcon, 
-  SparklesIcon, 
   ComputerDesktopIcon, 
   DevicePhoneMobileIcon, 
   PaperAirplaneIcon,
@@ -397,7 +396,7 @@ export default function EmailTemplateEditor() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <SparklesIcon className="w-4 h-4 text-purple-600" />
+                <TagIcon className="w-4 h-4 text-indigo-600" />
                 Merge Tags
               </h3>
               <span className="text-[10px] text-slate-400">Click to insert</span>
