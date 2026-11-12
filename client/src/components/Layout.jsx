@@ -184,7 +184,7 @@ export default function Layout() {
   return (
     <div className="flex bg-slate-50 min-h-screen font-sans">
       {/* Desktop Sidebar */}
-      <div className="w-64 flex-shrink-0 hidden md:flex flex-col border-r border-slate-200/80 shadow-2xs z-40">
+      <div className="w-[270px] flex-shrink-0 hidden md:flex flex-col border-r border-slate-200/80 shadow-2xs z-40">
         <Sidebar />
       </div>
 

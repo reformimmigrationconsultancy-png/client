@@ -45,19 +45,19 @@ export default function Sidebar({ onClose }) {
   const userName = user?.name || 'Maninder Pal Singh';
 
   return (
-    <div className="flex w-64 shrink-0 flex-col justify-between overflow-y-auto border-r border-slate-200/80 bg-white h-full select-none">
+    <div className="flex w-full shrink-0 flex-col justify-between overflow-y-auto border-r border-slate-200/80 bg-white h-full select-none">
       <div>
         {/* Brand Header */}
-        <div className="flex h-16 shrink-0 items-center justify-between px-5 border-b border-slate-100 bg-white">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center shadow-xs text-white font-black text-sm tracking-tight ring-1 ring-black/5">
+        <div className="flex h-[70px] shrink-0 items-center justify-between px-5 border-b border-slate-100 bg-white">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shadow-xs text-white font-extrabold text-[15px] tracking-tight ring-1 ring-black/5">
               M
             </div>
             <div className="flex flex-col">
-              <span className="text-[14px] font-bold text-slate-900 tracking-tight leading-none">
+              <span className="text-[15.5px] font-extrabold text-slate-900 tracking-tight leading-snug">
                 Maninder Pal Singh
               </span>
-              <span className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase mt-1">
+              <span className="text-[11px] font-bold text-slate-500 tracking-wider uppercase mt-0.5">
                 Commercial CRM
               </span>
             </div>
@@ -65,10 +65,10 @@ export default function Sidebar({ onClose }) {
         </div>
 
         {/* Navigation Sections */}
-        <nav className="flex flex-1 flex-col mt-4 px-3 space-y-6">
+        <nav className="flex flex-1 flex-col mt-5 px-3.5 space-y-6">
           {navigation.map((group) => (
             <div key={group.section}>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1.5">
+              <div className="text-[11.5px] font-extrabold text-slate-400 uppercase tracking-wider px-3 mb-2">
                 {group.section}
               </div>
               <ul role="list" className="space-y-1">
@@ -82,18 +82,18 @@ export default function Sidebar({ onClose }) {
                         onClick={() => onClose && onClose()}
                         className={classNames(
                           isActive
-                            ? 'bg-indigo-50/80 text-indigo-700 font-semibold shadow-2xs border border-indigo-100/60'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium',
-                          'group relative flex items-center justify-between rounded-lg px-3 py-2.5 text-[13.5px] transition-all duration-150 ease-in-out'
+                            ? 'bg-indigo-50/80 text-indigo-700 font-bold shadow-2xs border border-indigo-100/70'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-semibold',
+                          'group relative flex items-center justify-between rounded-xl px-3.5 py-2.5 text-[14.5px] transition-all duration-150 ease-in-out'
                         )}
                       >
-                        <div className="flex items-center gap-x-3">
+                        <div className="flex items-center gap-x-3.5">
                           <Icon
                             className={classNames(
                               isActive 
                                 ? 'text-indigo-600' 
                                 : 'text-slate-400 group-hover:text-indigo-600 transition-colors',
-                              'h-5 w-5 shrink-0'
+                              'h-[21px] w-[21px] shrink-0'
                             )}
                             aria-hidden="true"
                           />
@@ -102,7 +102,7 @@ export default function Sidebar({ onClose }) {
                         {item.badge && (
                           <span className={classNames(
                             isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600',
-                            'text-[10px] font-semibold px-2 py-0.5 rounded-full transition-colors'
+                            'text-[11px] font-bold px-2 py-0.5 rounded-md transition-colors'
                           )}>
                             {item.badge}
                           </span>
@@ -118,18 +118,18 @@ export default function Sidebar({ onClose }) {
       </div>
 
       {/* User Profile Footer Card */}
-      <div className="p-3 border-t border-slate-100 bg-slate-50/50 mt-auto">
-        <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-slate-200/70 shadow-2xs">
+      <div className="p-3.5 border-t border-slate-100 bg-slate-50/50 mt-auto">
+        <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200/70 shadow-2xs">
           <div className="relative">
-            <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
               {userInitial}
             </div>
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></span>
           </div>
 
           <div className="flex-1 overflow-hidden min-w-0">
-            <p className="text-[13px] font-semibold text-slate-900 truncate leading-tight">{userName}</p>
-            <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">Admin • Online</p>
+            <p className="text-[14px] font-bold text-slate-900 truncate leading-tight">{userName}</p>
+            <p className="text-[11.5px] text-slate-500 font-medium truncate mt-0.5">Admin • Online</p>
           </div>
 
           <button
