@@ -10,7 +10,8 @@ import {
   BoltIcon,
   ViewColumnsIcon,
   ClockIcon,
-  DocumentDuplicateIcon
+  DocumentDuplicateIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 
 const navigation = [
@@ -70,6 +71,9 @@ export default function Sidebar({ onClose }) {
           : []),
         ...(isAdmin || permissions.accessSettings
           ? [{ name: 'Settings', href: '/settings', icon: Cog6ToothIcon, badge: null }]
+          : []),
+        ...(isAdmin
+          ? [{ name: 'Employees', href: '/employees', icon: UsersIcon, badge: null }]
           : [])
       ]
     }

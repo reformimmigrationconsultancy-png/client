@@ -16,6 +16,7 @@ import EmailTemplateEditor from './pages/EmailTemplateEditor';
 import FollowUps from './pages/FollowUps';
 import KanbanBoard from './pages/KanbanBoard';
 import ClientPortal from './pages/ClientPortal';
+import Employees from './pages/Employees';
 
 function App() {
   const pathname = window.location.pathname;
@@ -37,6 +38,7 @@ function App() {
              <Route path="/kanban" element={<KanbanBoard />} />
              <Route path="/clients/:id" element={<ClientProfile />} />
              <Route path="/settings" element={<Settings />} /> 
+             <Route path="/employees" element={<Employees />} /> 
              <Route path="/automations" element={<Automations />} />
              <Route path="/workflows" element={<Automations />} />
              <Route path="/automations/new" element={<AutomationBuilder />} />
