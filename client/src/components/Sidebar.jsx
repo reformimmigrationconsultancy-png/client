@@ -73,7 +73,7 @@ export default function Sidebar({ onClose }) {
           ? [{ name: 'Settings', href: '/settings', icon: Cog6ToothIcon, badge: null }]
           : []),
         ...(isAdmin
-          ? [{ name: 'Employees', href: '/employees', icon: UsersIcon, badge: null }]
+          ? [{ name: 'Employees', href: '/employees', icon: UsersIcon, badge: 'Team' }]
           : [])
       ]
     }
