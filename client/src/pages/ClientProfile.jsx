@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { toast } from 'react-hot-toast';
@@ -48,6 +48,96 @@ export default function ClientProfile() {
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const [editData, setEditData] = useState({});
   const [callData, setCallData] = useState({ direction: 'outbound', status: 'answered', duration: 0, notes: '' });
+
+  // Follow-up Card State & Ref
+  const followUpCardRef = useRef(null);
+
+  const getDefaultFollowUpDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(10, 0, 0, 0);
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
+
+  const [followUpDate, setFollowUpDate] = useState(getDefaultFollowUpDate());
+  const [followUpTitle, setFollowUpTitle] = useState('Follow-up Call');
+  const [customTitle, setCustomTitle] = useState('');
+  const [followUpType, setFollowUpType] = useState('call');
+  const [followUpPriority, setFollowUpPriority] = useState('medium');
+  const [followUpNotes, setFollowUpNotes] = useState('');
+  const [submittingFollowUp, setSubmittingFollowUp] = useState(false);
+
+  const setQuickDate = (daysAhead, hour = 10) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysAhead);
+    d.setHours(hour, 0, 0, 0);
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    setFollowUpDate(new Date(d.getTime() - tzOffset).toISOString().slice(0, 16));
+  };
+
+  const handleCreateFollowUp = async (e) => {
+    if (e) e.preventDefault();
+    if (!followUpDate) {
+      toast.error('Please select a follow-up date and time');
+      return;
+    }
+
+    const titleToUse = followUpTitle === 'Custom' ? customTitle.trim() : followUpTitle;
+    if (!titleToUse) {
+      toast.error('Please enter a follow-up title');
+      return;
+    }
+
+    setSubmittingFollowUp(true);
+    const tId = toast.loading('Scheduling follow-up...');
+    try {
+      const res = await api.post('/reminders', {
+        client: id,
+        title: titleToUse,
+        dueDate: new Date(followUpDate).toISOString(),
+        type: followUpType,
+        priority: followUpPriority,
+        notes: followUpNotes.trim() || undefined
+      });
+
+      if (res.data && res.data.success) {
+        toast.success(`Follow-up scheduled for ${format(new Date(followUpDate), 'MMM d, h:mm a')}`, { id: tId });
+        setFollowUpNotes('');
+        if (followUpTitle === 'Custom') setCustomTitle('');
+        // Refresh reminders
+        const remRes = await api.get(`/reminders`);
+        if (remRes.data && remRes.data.success) {
+          const clientReminders = (remRes.data.reminders || []).filter(r => r.client?._id === id || r.client === id);
+          setReminders(clientReminders);
+        }
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to schedule follow-up', { id: tId });
+    } finally {
+      setSubmittingFollowUp(false);
+    }
+  };
+
+  const handleCompleteFollowUp = async (reminderId) => {
+    try {
+      await api.post(`/reminders/${reminderId}/complete`);
+      toast.success('Follow-up marked as completed!');
+      setReminders(prev => prev.map(r => r._id === reminderId ? { ...r, isCompleted: true, status: 'completed' } : r));
+    } catch (err) {
+      toast.error('Failed to complete follow-up');
+    }
+  };
+
+  const handleDeleteFollowUp = async (reminderId) => {
+    try {
+      await api.delete(`/reminders/${reminderId}`);
+      toast.success('Follow-up deleted');
+      setReminders(prev => prev.filter(r => r._id !== reminderId));
+    } catch (err) {
+      toast.error('Failed to delete follow-up');
+    }
+  };
 
   useEffect(() => {
     fetchClient();
@@ -236,7 +326,16 @@ export default function ClientProfile() {
           </button>
 
           <button 
-            onClick={() => navigate(`/followups?leadId=${id}`)}
+            onClick={() => {
+              if (followUpCardRef.current) {
+                followUpCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const dateInput = followUpCardRef.current.querySelector('input[type="datetime-local"]');
+                if (dateInput) {
+                  setTimeout(() => dateInput.focus(), 200);
+                }
+              }
+            }}
+            title="Set follow-up date for this client"
             className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg font-bold text-[13px] shadow-2xs transition-all"
           >
             <ClockIcon className="w-4 h-4" />
@@ -479,7 +578,219 @@ export default function ClientProfile() {
           {/* Right Column (30%) */}
           <div className="w-full lg:w-80 flex flex-col gap-6 shrink-0">
             
-            {/* Status & Next Action Summary */}
+            {/* Follow-up & Reminder Card */}
+            <div ref={followUpCardRef} className="bg-white rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-5 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
+                    <ClockIcon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-[12px] font-bold text-slate-900 uppercase tracking-wider">Follow-up Date</h3>
+                    <p className="text-[10px] text-slate-400 font-medium">Set next follow-up action</p>
+                  </div>
+                </div>
+                {reminders.filter(r => !r.isCompleted).length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                    {reminders.filter(r => !r.isCompleted).length} Scheduled
+                  </span>
+                )}
+              </div>
+
+              {/* Add Follow-up Form */}
+              <form onSubmit={handleCreateFollowUp} className="space-y-3">
+                {/* Date & Time Picker */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                    Select Date &amp; Time *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={followUpDate}
+                    onChange={(e) => setFollowUpDate(e.target.value)}
+                    required
+                    className="w-full text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 transition-all"
+                  />
+                </div>
+
+                {/* Quick Date Shortcuts */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setQuickDate(1, 10)}
+                    className="px-2 py-1 rounded text-[10px] font-semibold bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 transition-colors"
+                  >
+                    Tomorrow 10 AM
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuickDate(2, 11)}
+                    className="px-2 py-1 rounded text-[10px] font-semibold bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 transition-colors"
+                  >
+                    In 2 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuickDate(7, 10)}
+                    className="px-2 py-1 rounded text-[10px] font-semibold bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 transition-colors"
+                  >
+                    In 1 Week
+                  </button>
+                </div>
+
+                {/* Type Selection */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                    Follow-up Type
+                  </label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[
+                      { id: 'call', label: 'Call', icon: PhoneIcon },
+                      { id: 'whatsapp', label: 'Chat', icon: ChatBubbleLeftRightIcon },
+                      { id: 'email', label: 'Email', icon: EnvelopeIcon },
+                      { id: 'meeting', label: 'Meet', icon: UserCircleIcon }
+                    ].map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setFollowUpType(t.id)}
+                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all ${
+                          followUpType === t.id
+                            ? 'bg-indigo-600 text-white shadow-2xs'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                        }`}
+                      >
+                        <t.icon className="w-3 h-3" />
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Follow-up Reason / Title */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                    Reason / Purpose
+                  </label>
+                  <select
+                    value={followUpTitle}
+                    onChange={(e) => setFollowUpTitle(e.target.value)}
+                    className="w-full text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 transition-all mb-1.5"
+                  >
+                    <option value="Follow-up Call">Follow-up Call</option>
+                    <option value="Visa Application Discussion">Visa Application Discussion</option>
+                    <option value="Document Collection">Document Collection</option>
+                    <option value="IELTS / PTE Test Score Follow-up">IELTS / PTE Test Score Follow-up</option>
+                    <option value="Fee Payment & Agreement">Fee Payment &amp; Agreement</option>
+                    <option value="Custom">Custom Note...</option>
+                  </select>
+                  {followUpTitle === 'Custom' && (
+                    <input
+                      type="text"
+                      placeholder="Type custom follow-up title..."
+                      value={customTitle}
+                      onChange={(e) => setCustomTitle(e.target.value)}
+                      required
+                      className="w-full text-xs font-medium text-slate-800 bg-white border border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 transition-all"
+                    />
+                  )}
+                </div>
+
+                {/* Optional Note */}
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Optional note / reminder details..."
+                    value={followUpNotes}
+                    onChange={(e) => setFollowUpNotes(e.target.value)}
+                    className="w-full text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:bg-white focus:border-indigo-400 transition-all placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={submittingFollowUp || !followUpDate}
+                  className="w-full py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold shadow-xs hover:shadow transition-all flex items-center justify-center gap-1.5"
+                >
+                  <ClockIcon className="w-3.5 h-3.5" />
+                  {submittingFollowUp ? 'Scheduling...' : 'Set Follow-up Date'}
+                </button>
+              </form>
+
+              {/* Scheduled Follow-ups List */}
+              <div className="pt-3 border-t border-slate-100">
+                <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">
+                  Scheduled Follow-ups ({reminders.filter(r => !r.isCompleted).length})
+                </span>
+
+                {reminders.filter(r => !r.isCompleted).length === 0 ? (
+                  <p className="text-xs text-slate-400 italic py-2 text-center bg-slate-50/60 rounded-lg border border-dashed border-slate-200">
+                    No follow-ups scheduled yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {reminders.filter(r => !r.isCompleted).sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)).map((rem) => {
+                      const dueDate = new Date(rem.dueDate);
+                      const isOverdue = dueDate < new Date();
+                      return (
+                        <div
+                          key={rem._id}
+                          className={`p-2.5 rounded-lg border text-xs transition-all ${
+                            isOverdue
+                              ? 'bg-rose-50/70 border-rose-200 text-rose-900'
+                              : 'bg-slate-50 border-slate-200 text-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold truncate">{rem.title}</span>
+                                {isOverdue && (
+                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-rose-200/80 text-rose-800 uppercase">
+                                    Overdue
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                                <ClockIcon className="w-3 h-3 shrink-0 text-slate-400" />
+                                {format(dueDate, 'MMM d, yyyy · h:mm a')}
+                              </p>
+                              {rem.notes && (
+                                <p className="text-[10px] text-slate-500 mt-1 italic line-clamp-2">
+                                  {rem.notes}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleCompleteFollowUp(rem._id)}
+                                title="Mark Completed"
+                                className="p-1 rounded hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 transition-colors"
+                              >
+                                <CheckCircleIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteFollowUp(rem._id)}
+                                title="Delete Follow-up"
+                                className="p-1 rounded hover:bg-rose-100 text-slate-400 hover:text-rose-600 transition-colors"
+                              >
+                                <TrashIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Status Overview Card */}
             <div className="bg-white rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-5">
               <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Status Overview</h3>
               <div className="flex items-center justify-between mb-3">
@@ -488,38 +799,12 @@ export default function ClientProfile() {
                   {client.stage.replace('_', ' ')}
                 </span>
               </div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between">
                 <span className="text-[13px] font-medium text-slate-600">Assigned To</span>
                 <span className="text-[13px] font-bold text-slate-900">
                   {client.assignedTo?.name || 'Unassigned'}
                 </span>
               </div>
-
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[13px] font-medium text-slate-600">Next Action</span>
-                </div>
-                {reminders.filter(r => !r.isCompleted).length > 0 ? (
-                  <div className="space-y-2">
-                    {reminders.filter(r => !r.isCompleted).sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)).slice(0, 1).map(r => (
-                      <div key={r._id} className="bg-slate-50 p-2 rounded-md border border-slate-200">
-                        <p className="text-[13px] font-bold text-slate-900">{r.title}</p>
-                        <p className="text-[11px] text-slate-500 mt-1">{new Date(r.dueDate).toLocaleString()}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-[12px] font-medium text-slate-400 italic">No follow-ups scheduled</span>
-                )}
-              </div>
-              
-              <button 
-                onClick={() => window.location.href='/followups'}
-                className="w-full mt-4 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all"
-              >
-                <ClockIcon className="w-4 h-4" />
-                Add Follow-up
-              </button>
             </div>
 
             {/* Automation State Widget */}
