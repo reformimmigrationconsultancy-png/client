@@ -27,7 +27,13 @@ export default function Dashboard() {
     const socket = io(BACKEND_URL, { withCredentials: true, transports: ['polling', 'websocket'] });
 
     socket.on('new_lead', (newLead) => {
-      setRecentLeads(prev => [newLead, ...prev.slice(0, 7)]);
+      // If user is staff with restricted permissions, ignore unassigned leads
+      if (user?.role === 'staff' && !user?.permissions?.viewAllLeads) {
+        const assignedId = newLead?.assignedTo?._id || newLead?.assignedTo;
+        if (String(assignedId) !== String(user._id)) {
+          return;
+        }
+      }
       fetchDashboardData();
     });
 

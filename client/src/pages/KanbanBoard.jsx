@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import { toast } from 'react-hot-toast';
 import { 
@@ -73,9 +74,18 @@ const STAGES = {
 
 export default function KanbanBoard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [columns, setColumns] = useState({});
   const [loading, setLoading] = useState(true);
   const [filterQuery, setFilterQuery] = useState('');
+
+  const isAdmin = user?.role === 'admin';
+  const canEdit = isAdmin || Boolean(user?.permissions?.editLeads);
+  const isScopedStaff = user?.role === 'staff' && !user?.permissions?.viewAllLeads;
+
+  const totalLeadsOnBoard = useMemo(() => {
+    return Object.values(columns).reduce((sum, col) => sum + (col.items?.length || 0), 0);
+  }, [columns]);
 
   const fetchLeads = async () => {
     try {
@@ -106,6 +116,11 @@ export default function KanbanBoard() {
   const onDragEnd = async (result) => {
     if (!result.destination) return;
     
+    if (!canEdit) {
+      toast.error('You do not have permission to update lead stages');
+      return;
+    }
+
     const { source, destination } = result;
     
     // Dropped in same column and same index
@@ -230,16 +245,37 @@ export default function KanbanBoard() {
             <ArrowPathIcon className="w-4 h-4" />
           </button>
 
-          <button
-            onClick={() => navigate('/leads?action=new')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-all"
-          >
-            <PlusIcon className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>Add Lead</span>
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => navigate('/leads?action=new')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-all cursor-pointer"
+            >
+              <PlusIcon className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Add Lead</span>
+            </button>
+          )}
         </div>
       </div>
       
+      {/* Alert Banner for Staff when 0 leads assigned */}
+      {isScopedStaff && totalLeadsOnBoard === 0 && (
+        <div className="mx-6 mt-4 p-4 rounded-xl bg-amber-50/80 border border-amber-200/80 flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-base shrink-0">
+              🔒
+            </div>
+            <div>
+              <p className="text-xs font-bold text-amber-900">
+                No Leads Assigned To You Yet
+              </p>
+              <p className="text-[11.5px] text-amber-700 mt-0.5">
+                Admin jab tak aapke account ko leads assign nahi karega, tab tak aapki pipeline empty rahegi. Admin ke assign karte hi sari leads automatically yahan columns mein show hongi.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Board Scroll Area */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar">
         <DragDropContext onDragEnd={onDragEnd}>

@@ -126,16 +126,27 @@ export default function RecentLeadsTable({ leads = [], loading = false }) {
           <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 mb-3 border border-indigo-100 shadow-2xs">
             <UserGroupIcon className="w-6 h-6" />
           </div>
-          <h3 className="text-sm font-bold text-slate-900">No leads recorded yet</h3>
-          <p className="text-xs text-slate-500 mt-1 max-w-sm">
-            Sync your Meta lead ads or click "+ Add Lead" to record your first customer opportunity.
-          </p>
-          <button
-            onClick={() => navigate('/leads?action=new')}
-            className="mt-4 px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-all"
-          >
-            Create First Lead
-          </button>
+          {user?.role === 'staff' && !user?.permissions?.viewAllLeads ? (
+            <>
+              <h3 className="text-sm font-bold text-slate-900">No leads assigned to you yet</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                Admin jab tak aapko leads assign nahi karega, tab tak dashboard aur pipeline empty rahegi. Admin ke assign karte hi aapki leads yahan show hongi.
+              </p>
+            </>
+          ) : (
+            <>
+              <h3 className="text-sm font-bold text-slate-900">No leads recorded yet</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                Sync your Meta lead ads or click "+ Add Lead" to record your first customer opportunity.
+              </p>
+              <button
+                onClick={() => navigate('/leads?action=new')}
+                className="mt-4 px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-all cursor-pointer"
+              >
+                Create First Lead
+              </button>
+            </>
+          )}
         </div>
       ) : (
         /* Table View */
