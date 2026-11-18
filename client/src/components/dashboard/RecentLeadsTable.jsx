@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { useAuth } from '../../context/AuthContext';
 import { 
   ArrowRightIcon, 
   ChevronRightIcon,
@@ -54,8 +55,10 @@ const SourceBadge = ({ source }) => {
   );
 };
 
-export default function RecentLeadsTable({ leads = [], loading = false }) {
+export default function RecentLeadsTable({ leads = [], loading = false, user: propUser }) {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
+  const user = propUser || authUser;
 
   const handleCopyLeadLink = (lead, e) => {
     e.stopPropagation();
