@@ -857,20 +857,7 @@ export default function KanbanBoard() {
                     )}
                   </Droppable>
 
-                  {/* Add Card Button At Bottom of Column */}
-                  {canEdit && (
-                    <div className="p-2.5 border-t border-slate-200/80 bg-white/70">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAddCard(columnId)}
-                        className="w-full py-1.5 px-3 rounded-lg border border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/50 text-slate-600 hover:text-indigo-600 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                      >
-                        <PlusIcon className="w-3 h-3 stroke-[2.5]" />
-                        <span>Add Card</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                  </div>
               );
             })}
 
