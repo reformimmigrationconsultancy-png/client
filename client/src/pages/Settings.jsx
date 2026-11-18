@@ -20,6 +20,8 @@ import {
   EyeSlashIcon,
   PaperAirplaneIcon,
   CodeBracketIcon,
+  LockClosedIcon,
+  CheckBadgeIcon
 } from '@heroicons/react/24/outline';
 
 const InstagramIcon = (props) => (
@@ -688,9 +690,90 @@ fetch('${webhookUrl}', {
 }
 
 export default function Settings() {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('integrations');
+  const { user, updateUser } = useAuth();
+  const [activeTab, setActiveTab] = useState('profile');
   const [activeIntegration, setActiveIntegration] = useState('facebook');
+
+  // Profile Form State
+  const [profileName, setProfileName] = useState(user?.name || '');
+  const [profileEmail, setProfileEmail] = useState(user?.email || '');
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setProfileName(user.name || '');
+      setProfileEmail(user.email || '');
+    }
+  }, [user]);
+
+  // Password / Security Form State
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+
+  const handleUpdateProfile = async (e) => {
+    if (e) e.preventDefault();
+    if (!profileName.trim() || !profileEmail.trim()) {
+      toast.error('Name and email cannot be empty');
+      return;
+    }
+    setSavingProfile(true);
+    const tId = toast.loading('Saving account details...');
+    try {
+      const res = await api.put('/auth/update-profile', {
+        name: profileName.trim(),
+        email: profileEmail.trim()
+      });
+      if (res.data.success) {
+        toast.success(res.data.message || 'Profile updated successfully!', { id: tId });
+        if (updateUser) {
+          updateUser(res.data.user);
+        }
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to update profile', { id: tId });
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    if (e) e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters long');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('New password and confirm password do not match');
+      return;
+    }
+
+    setUpdatingPassword(true);
+    const tId = toast.loading('Updating password...');
+    try {
+      const res = await api.put('/auth/update-password', {
+        currentPassword: currentPassword.trim(),
+        newPassword: newPassword.trim()
+      });
+      if (res.data.success) {
+        toast.success(res.data.message || 'Password updated successfully!', { id: tId });
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        if (updateUser && res.data.user) {
+          updateUser(res.data.user, res.data.token);
+        }
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to update password', { id: tId });
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
 
   const integrations = [
     { 
@@ -777,42 +860,75 @@ export default function Settings() {
 
         <div className="col-span-1 md:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-8 min-h-[500px]">
            {activeTab === 'profile' && (
-             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <form onSubmit={handleUpdateProfile} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="space-y-1">
                    <h3 className="text-xl font-bold text-slate-900">Account Information</h3>
                    <p className="text-sm text-slate-500">Update your personal details and account status.</p>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                    <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Full Name</label>
-                      <input type="text" defaultValue={user?.name} className="w-full bg-slate-50 border-transparent focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 rounded-xl py-3 px-4 font-medium transition-all" />
+                      <input 
+                        type="text" 
+                        value={profileName}
+                        onChange={(e) => setProfileName(e.target.value)}
+                        placeholder="Admin Full Name"
+                        className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 rounded-xl py-3 px-4 font-medium transition-all text-slate-800 text-sm" 
+                      />
                    </div>
                    <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Email Address</label>
-                      <input type="email" defaultValue={user?.email} className="w-full bg-slate-50 border-transparent focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 rounded-xl py-3 px-4 font-medium transition-all" />
+                      <input 
+                        type="email" 
+                        value={profileEmail}
+                        onChange={(e) => setProfileEmail(e.target.value)}
+                        placeholder="admin@crm.com"
+                        className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 rounded-xl py-3 px-4 font-medium transition-all text-slate-800 text-sm" 
+                      />
                    </div>
                    <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">User Role</label>
-                      <div className="w-full bg-slate-100 rounded-xl py-3 px-4 font-bold text-slate-600 capitalize cursor-not-allowed">
-                        {user?.role}
+                      <div className="w-full bg-slate-100/90 rounded-xl py-3 px-4 font-bold text-slate-600 capitalize cursor-not-allowed border border-slate-200/50 text-sm">
+                        {user?.role || 'Admin'}
                       </div>
                    </div>
                    <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Account Status</label>
-                      <div className="flex items-center gap-2 text-emerald-600 font-bold px-1">
+                      <div className="flex items-center gap-2 text-emerald-600 font-bold px-1 py-2.5 text-sm">
                         <CheckCircleIcon className="w-5 h-5" />
-                        Active &amp; Verified
+                        Active &amp; Verified Administrator
                       </div>
                    </div>
                 </div>
 
-                <div className="pt-10 flex justify-end">
-                  <button className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95">
-                     Save Changes
+                <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-100 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <ShieldCheckIcon className="w-5 h-5 text-blue-600 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Want to customize your login password?</p>
+                      <p className="text-[11px] text-slate-500">You can set your own personalized password anytime from the Security tab.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('security')}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline shrink-0"
+                  >
+                    Go to Security &rarr;
                   </button>
                 </div>
-             </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button 
+                    type="submit"
+                    disabled={savingProfile}
+                    className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95 disabled:opacity-50"
+                  >
+                     {savingProfile ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+             </form>
            )}
 
            {activeTab === 'integrations' && !activeIntegration && (
@@ -905,10 +1021,206 @@ export default function Settings() {
              </div>
            )}
 
-           {(activeTab === 'security' || activeTab === 'personalization') && (
-             <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4">
-                <Cog6ToothIcon className="w-12 h-12 opacity-20 animate-spin-slow" />
-                <p className="font-bold text-sm tracking-widest uppercase">Coming Soon</p>
+           {activeTab === 'security' && (
+             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-bold text-slate-900">Security &amp; Login Password</h3>
+                  <p className="text-sm text-slate-500">
+                    Set and customize your admin login password according to your choice.
+                  </p>
+                </div>
+
+                {/* Password Change Form Card */}
+                <form onSubmit={handleUpdatePassword} className="space-y-6 pt-1">
+                  <div className="p-6 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-5">
+                    <div className="flex items-center gap-3 pb-3 border-b border-slate-200/70">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
+                        <LockClosedIcon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">Change Admin Password</h4>
+                        <p className="text-xs text-slate-500">Enter your new desired password below to replace the default credentials.</p>
+                      </div>
+                    </div>
+
+                    {/* Current Password Field */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                          Current Password
+                        </label>
+                        <span className="text-[11px] text-slate-400 font-medium">Default was 123456</span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={showCurrentPass ? 'text' : 'password'}
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          placeholder="Enter current password (or default: 123456)"
+                          className="w-full bg-white border border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 rounded-xl py-3 pl-4 pr-11 text-sm font-medium transition-all text-slate-800"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPass(!showCurrentPass)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                          tabIndex="-1"
+                        >
+                          {showCurrentPass ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* New Password Field */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                          New Password *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showNewPass ? 'text' : 'password'}
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Enter new password (min. 6 characters)"
+                            required
+                            minLength={6}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 rounded-xl py-3 pl-4 pr-11 text-sm font-medium transition-all text-slate-800"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPass(!showNewPass)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                            tabIndex="-1"
+                          >
+                            {showNewPass ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        {newPassword && newPassword.length < 6 && (
+                          <p className="text-[11px] text-amber-600 font-semibold">
+                            ⚠️ Password must be at least 6 characters long ({newPassword.length}/6)
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Confirm New Password Field */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                          Confirm New Password *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showConfirmPass ? 'text' : 'password'}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="Re-enter new password"
+                            required
+                            className={`w-full bg-white border rounded-xl py-3 pl-4 pr-11 text-sm font-medium transition-all text-slate-800 ${
+                              confirmPassword && confirmPassword !== newPassword
+                                ? 'border-rose-300 focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10'
+                                : confirmPassword && confirmPassword === newPassword
+                                ? 'border-emerald-300 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10'
+                                : 'border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10'
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPass(!showConfirmPass)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                            tabIndex="-1"
+                          >
+                            {showConfirmPass ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        {confirmPassword && confirmPassword !== newPassword && (
+                          <p className="text-[11px] text-rose-600 font-semibold">
+                            ✕ Passwords do not match
+                          </p>
+                        )}
+                        {confirmPassword && confirmPassword === newPassword && (
+                          <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                            ✓ Passwords match
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={updatingPassword || !newPassword || newPassword.length < 6 || newPassword !== confirmPassword}
+                        className="bg-blue-600 text-white px-7 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <LockClosedIcon className="w-4 h-4" />
+                        {updatingPassword ? 'Updating Password...' : 'Update Login Password'}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+
+                {/* Account Security Information Card */}
+                <div className="p-5 rounded-2xl border border-slate-200/80 bg-white shadow-2xs space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                      <CheckBadgeIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Active Login Credentials</h4>
+                      <p className="text-xs text-slate-500">Your current administrator login details.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Login Email</p>
+                      <p className="text-xs font-bold text-slate-800 truncate mt-0.5">{user?.email || 'admin@crm.com'}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Account Type</p>
+                      <p className="text-xs font-bold text-slate-800 capitalize mt-0.5">{user?.role || 'Administrator'}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Session Status</p>
+                      <p className="text-xs font-bold text-emerald-600 flex items-center gap-1.5 mt-0.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Active &amp; Secured
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    💡 <strong>Tip:</strong> Once you update your password, use your email (<strong>{user?.email || 'admin@crm.com'}</strong>) and your new password to log in next time.
+                  </p>
+                </div>
+             </div>
+           )}
+
+           {activeTab === 'personalization' && (
+             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-bold text-slate-900">Appearance &amp; Display</h3>
+                  <p className="text-sm text-slate-500">Customize visual theme and typography preferences.</p>
+                </div>
+
+                <div className="p-6 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">Interface Theme</p>
+                      <p className="text-xs text-slate-500">Clean Commercial Light Mode (Active)</p>
+                    </div>
+                    <span className="text-xs font-bold px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full">
+                      Light Mode
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-200/70">
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">Typography Scale</p>
+                      <p className="text-xs text-slate-500">Plus Jakarta Sans &amp; Inter Executive Scale</p>
+                    </div>
+                    <span className="text-xs font-bold px-3 py-1 bg-slate-100 text-slate-700 rounded-full">
+                      Optimized
+                    </span>
+                  </div>
+                </div>
              </div>
            )}
         </div>
