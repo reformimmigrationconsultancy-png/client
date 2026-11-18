@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api, { BACKEND_URL } from '../utils/api';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -40,11 +41,22 @@ const SourceIcon = ({ source }) => {
 export default function Leads() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+
+  const isAdmin = user?.role === 'admin';
+  const canDelete = isAdmin || Boolean(user?.permissions?.deleteLeads);
+  const canEdit = isAdmin || Boolean(user?.permissions?.editLeads);
+  const canExport = isAdmin || Boolean(user?.permissions?.exportLeads);
+  const canViewFinancials = isAdmin || Boolean(user?.permissions?.viewFinancials);
+
   const [columns, setColumns] = useState({});
   const [allLeads, setAllLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeStageFilter, setActiveStageFilter] = useState('all');
+  const [assignedFilter, setAssignedFilter] = useState('all');
+  const [teamMembers, setTeamMembers] = useState([]);
   const [isSyncingMeta, setIsSyncingMeta] = useState(false);
+  const [isBulkAssigning, setIsBulkAssigning] = useState(false);
   
   // Bulk & Single Delete States
   const [selectedLeadIds, setSelectedLeadIds] = useState([]);
@@ -62,6 +74,14 @@ export default function Leads() {
   const [newLead, setNewLead] = useState({
     fullName: '', email: '', phone: '', source: 'facebook', stage: 'new_lead', loanAmount: '', propertyValue: ''
   });
+
+  useEffect(() => {
+    api.get('/auth/team-members')
+      .then(res => {
+        if (res.data?.success) setTeamMembers(res.data.users || []);
+      })
+      .catch(err => console.error('Failed to load team members:', err));
+  }, []);
 
   useEffect(() => {
     if (searchParams.get('action') === 'new') {
@@ -205,6 +225,16 @@ export default function Leads() {
     if (activeStageFilter !== 'all') {
       list = list.filter(l => l.stage === activeStageFilter);
     }
+    if (assignedFilter !== 'all') {
+      if (assignedFilter === 'unassigned') {
+        list = list.filter(l => !l.assignedTo);
+      } else {
+        list = list.filter(l => {
+          const aId = l.assignedTo?._id || l.assignedTo;
+          return String(aId) === String(assignedFilter);
+        });
+      }
+    }
     if (searchQuery.trim()) {
       const search = searchQuery.toLowerCase();
       list = list.filter(item => 
@@ -215,7 +245,43 @@ export default function Leads() {
       );
     }
     return list;
-  }, [allLeads, activeStageFilter, searchQuery]);
+  }, [allLeads, activeStageFilter, assignedFilter, searchQuery]);
+
+  // Bulk Assign Handler
+  const handleBulkAssign = async (targetUserId) => {
+    if (!targetUserId) return;
+    setIsBulkAssigning(true);
+    try {
+      const res = await api.post('/clients/bulk-assign', {
+        ids: selectedLeadIds,
+        assignedTo: targetUserId === 'unassigned' ? null : targetUserId
+      });
+      toast.success(res.data?.message || `Assigned ${selectedLeadIds.length} lead(s)`);
+      setSelectedLeadIds([]);
+      fetchLeads();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to bulk assign leads');
+    } finally {
+      setIsBulkAssigning(false);
+    }
+  };
+
+  // Single Lead Assign Handler
+  const handleAssignSingleLead = async (leadId, targetUserId, e) => {
+    if (e) e.stopPropagation();
+    try {
+      const res = await api.put(`/clients/${leadId}`, {
+        assignedTo: targetUserId === 'unassigned' ? null : targetUserId
+      });
+      if (res.data?.success) {
+        setAllLeads(prev => prev.map(l => l._id === leadId ? { ...l, assignedTo: res.data.client.assignedTo } : l));
+        const userObj = teamMembers.find(m => String(m._id) === String(targetUserId));
+        toast.success(userObj ? `Assigned to ${userObj.name}` : 'Lead unassigned');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update assignment');
+    }
+  };
 
   // Checkbox helpers
   const isAllSelected = filteredLeads.length > 0 && selectedLeadIds.length === filteredLeads.length;
@@ -341,9 +407,27 @@ export default function Leads() {
               <ChevronDownIcon className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
 
-            {(activeStageFilter !== 'all' || searchQuery) && (
+            {/* Staff Filter (visible to admin or anyone with viewAllLeads) */}
+            {(isAdmin || user?.permissions?.viewAllLeads) && (
+              <div className="relative">
+                <select 
+                  value={assignedFilter}
+                  onChange={(e) => setAssignedFilter(e.target.value)}
+                  className="appearance-none bg-white border border-slate-200 rounded-lg py-1.5 pl-3 pr-8 text-[13px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer"
+                >
+                  <option value="all">Staff: All</option>
+                  <option value="unassigned">Unassigned</option>
+                  {teamMembers.map(m => (
+                    <option key={m._id} value={m._id}>{m.name}</option>
+                  ))}
+                </select>
+                <ChevronDownIcon className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
+            )}
+
+            {(activeStageFilter !== 'all' || assignedFilter !== 'all' || searchQuery) && (
               <button 
-                onClick={() => { setActiveStageFilter('all'); setSearchQuery(''); }}
+                onClick={() => { setActiveStageFilter('all'); setAssignedFilter('all'); setSearchQuery(''); }}
                 className="text-[12px] font-medium text-slate-500 hover:text-slate-900 transition-colors px-2"
               >
                 Clear filters
@@ -355,8 +439,30 @@ export default function Leads() {
         {/* Right Toolbar: Actions & Bulk Delete */}
         <div className="flex items-center gap-3 w-full md:w-auto justify-end">
           
+          {/* BULK ASSIGN */}
+          {selectedLeadIds.length > 0 && canEdit && (
+            <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-lg px-2 py-1 shadow-xs animate-fade-in">
+              <span className="text-[12px] font-bold text-indigo-700">Assign:</span>
+              <select
+                onChange={(e) => {
+                  if (e.target.value) handleBulkAssign(e.target.value);
+                  e.target.value = '';
+                }}
+                defaultValue=""
+                disabled={isBulkAssigning}
+                className="text-[12px] font-semibold bg-white border border-indigo-200 text-slate-800 rounded px-2 py-1 cursor-pointer focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+              >
+                <option value="" disabled>Choose Staff...</option>
+                <option value="unassigned">Unassigned</option>
+                {teamMembers.map(m => (
+                  <option key={m._id} value={m._id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* BULK DELETE BUTTON */}
-          {selectedLeadIds.length > 0 && (
+          {selectedLeadIds.length > 0 && canDelete && (
             <button
               onClick={handleBulkDeleteLeads}
               disabled={isBulkDeleting}
@@ -389,22 +495,26 @@ export default function Leads() {
             <span>{isSyncingMeta ? 'Syncing...' : 'Sync Leads'}</span>
           </button>
 
-          <button 
-            onClick={handleExportCSV}
-            title="Export leads to CSV"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all"
-          >
-            <ArrowDownTrayIcon className="w-3.5 h-3.5 text-slate-500" />
-            <span>Export CSV</span>
-          </button>
+          {canExport && (
+            <button 
+              onClick={handleExportCSV}
+              title="Export leads to CSV"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all"
+            >
+              <ArrowDownTrayIcon className="w-3.5 h-3.5 text-slate-500" />
+              <span>Export CSV</span>
+            </button>
+          )}
           
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg font-bold text-[13px] shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-all hover:-translate-y-[1px]"
-          >
-            <PlusIcon className="w-3.5 h-3.5" strokeWidth={2.5} />
-            <span>New Lead</span>
-          </button>
+          {canEdit && (
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg font-bold text-[13px] shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-all hover:-translate-y-[1px]"
+            >
+              <PlusIcon className="w-3.5 h-3.5" strokeWidth={2.5} />
+              <span>New Lead</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -426,8 +536,9 @@ export default function Leads() {
                   <th className="py-3 px-4 w-1/4">Lead</th>
                   <th className="py-3 px-4 w-1/5">Contact</th>
                   <th className="py-3 px-4 w-1/5">Source</th>
-                  <th className="py-3 px-4">Value</th>
+                  {(canViewFinancials || isAdmin) && <th className="py-3 px-4">Value</th>}
                   <th className="py-3 px-4">Stage</th>
+                  <th className="py-3 px-4">Assigned To</th>
                   <th className="py-3 px-4">Created</th>
                   <th className="py-3 px-4 text-right w-24">Actions</th>
                 </tr>
@@ -435,7 +546,7 @@ export default function Leads() {
               <tbody className="divide-y divide-slate-100/80 text-[13px] text-slate-700">
                 {filteredLeads.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="py-20 text-center">
+                    <td colSpan="9" className="py-20 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <div className="w-14 h-14 bg-slate-50 border border-slate-100 text-slate-400 rounded-full flex items-center justify-center mb-4">
                           <UserGroupIcon className="w-6 h-6" />
@@ -444,12 +555,14 @@ export default function Leads() {
                         <p className="text-[13px] text-slate-500 mt-1 mb-5">
                           {searchQuery ? 'No leads matched your search query.' : 'Try changing your filters or create a new lead.'}
                         </p>
-                        <button 
-                          onClick={() => setIsAddModalOpen(true)}
-                          className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[13px] font-semibold transition-colors"
-                        >
-                          + New Lead
-                        </button>
+                        {canEdit && (
+                          <button 
+                            onClick={() => setIsAddModalOpen(true)}
+                            className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[13px] font-semibold transition-colors"
+                          >
+                            + New Lead
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -505,19 +618,43 @@ export default function Leads() {
                         </td>
 
                         {/* VALUE */}
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          {item.loanAmount ? (
-                            <span className="font-medium text-slate-700">${Number(item.loanAmount).toLocaleString()}</span>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
-                        </td>
+                        {(canViewFinancials || isAdmin) && (
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            {item.loanAmount ? (
+                              <span className="font-medium text-slate-700">${Number(item.loanAmount).toLocaleString()}</span>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+                        )}
 
                         {/* STAGE */}
                         <td className="py-3 px-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${stage.bg} ${stage.text}`}>
                             {stage.title}
                           </span>
+                        </td>
+
+                        {/* ASSIGNED TO */}
+                        <td className="py-3 px-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          {canEdit ? (
+                            <select
+                              value={item.assignedTo?._id || item.assignedTo || ''}
+                              onChange={(e) => handleAssignSingleLead(item._id, e.target.value, e)}
+                              className="text-[12px] font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md px-2 py-1 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                            >
+                              <option value="">Unassigned</option>
+                              {teamMembers.map(m => (
+                                <option key={m._id} value={m._id}>
+                                  {m.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-[12px] font-medium text-slate-600">
+                              {item.assignedTo?.name || 'Unassigned'}
+                            </span>
+                          )}
                         </td>
 
                         {/* CREATED */}
@@ -550,13 +687,15 @@ export default function Leads() {
                                 </a>
                              )}
 
-                             <button
-                               onClick={() => setLeadToDelete(item)}
-                               className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 hover:border-rose-200 transition-all"
-                               title={`Delete lead ${item.fullName}`}
-                             >
-                               <TrashIcon className="w-3.5 h-3.5" />
-                             </button>
+                             {canDelete && (
+                               <button
+                                 onClick={() => setLeadToDelete(item)}
+                                 className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 hover:border-rose-200 transition-all"
+                                 title={`Delete lead ${item.fullName}`}
+                               >
+                                 <TrashIcon className="w-3.5 h-3.5" />
+                               </button>
+                             )}
                              <button
                                onClick={() => navigate(`/clients/${item._id}`)}
                                className="px-2.5 py-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"

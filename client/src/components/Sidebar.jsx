@@ -43,6 +43,37 @@ export default function Sidebar({ onClose }) {
 
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'M';
   const userName = user?.name || 'Maninder Pal Singh';
+  const isAdmin = user?.role === 'admin';
+  const permissions = user?.permissions || {};
+
+  // Dynamically filter navigation based on user permissions
+  const filteredNavigation = [
+    {
+      section: 'MAIN MENU',
+      items: [
+        { name: 'Dashboard', href: '/', icon: HomeIcon, badge: null },
+        { name: 'Leads List', href: '/leads', icon: UserGroupIcon, badge: null },
+        { name: 'Pipeline View', href: '/kanban', icon: ViewColumnsIcon, badge: 'Pipeline' },
+        ...(isAdmin || permissions.manageFollowUps !== false
+          ? [{ name: 'Follow-ups', href: '/followups', icon: ClockIcon, badge: null }]
+          : [])
+      ]
+    },
+    {
+      section: 'AUTOMATION & TOOLS',
+      items: [
+        ...(isAdmin || permissions.accessAutomations
+          ? [
+              { name: 'Workflow Rules', href: '/automations', icon: BoltIcon, badge: null },
+              { name: 'Email Templates', href: '/templates', icon: DocumentDuplicateIcon, badge: null },
+            ]
+          : []),
+        ...(isAdmin || permissions.accessSettings
+          ? [{ name: 'Settings', href: '/settings', icon: Cog6ToothIcon, badge: null }]
+          : [])
+      ]
+    }
+  ].filter(group => group.items.length > 0);
 
   return (
     <div className="flex w-full shrink-0 flex-col justify-between overflow-y-auto border-r border-slate-200/80 bg-white h-full select-none">
@@ -66,7 +97,7 @@ export default function Sidebar({ onClose }) {
 
         {/* Navigation Sections */}
         <nav className="flex flex-1 flex-col mt-5 px-3.5 space-y-6">
-          {navigation.map((group) => (
+          {filteredNavigation.map((group) => (
             <div key={group.section}>
               <div className="text-[11.5px] font-extrabold text-slate-400 uppercase tracking-wider px-3 mb-2">
                 {group.section}
@@ -129,7 +160,9 @@ export default function Sidebar({ onClose }) {
 
           <div className="flex-1 overflow-hidden min-w-0">
             <p className="text-[14px] font-bold text-slate-900 truncate leading-tight">{userName}</p>
-            <p className="text-[11.5px] text-slate-500 font-medium truncate mt-0.5">Admin • Online</p>
+            <p className="text-[11.5px] text-slate-500 font-medium truncate mt-0.5">
+              {isAdmin ? 'Admin' : 'Staff'} • Online
+            </p>
           </div>
 
           <button

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -28,12 +29,41 @@ import {
 export default function ClientProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('notes');
   const [newNote, setNewNote] = useState('');
   const [executions, setExecutions] = useState([]);
   const [reminders, setReminders] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  useEffect(() => {
+    api.get('/auth/team-members')
+      .then(res => {
+        if (res.data?.success) {
+          setTeamMembers(res.data.users || []);
+        }
+      })
+      .catch(err => console.error('Failed to load team members:', err));
+  }, []);
+
+  const handleAssignChange = async (userId) => {
+    setIsAssigning(true);
+    try {
+      const res = await api.put(`/clients/${id}`, { assignedTo: userId || null });
+      if (res.data?.success) {
+        setClient(prev => ({ ...prev, assignedTo: res.data.client.assignedTo }));
+        const assignedUser = teamMembers.find(m => String(m._id) === String(userId));
+        toast.success(assignedUser ? `Assigned to ${assignedUser.name}` : 'Lead unassigned');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update lead assignment');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
 
   const getInitials = (name) => {
     if (!name) return 'L';
@@ -342,21 +372,25 @@ export default function ClientProfile() {
             + Follow-up
           </button>
 
-          <button 
-            onClick={() => setIsEditModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-2xs transition-all"
-          >
-            <PencilSquareIcon className="w-4 h-4 text-slate-400" />
-            Edit
-          </button>
+          {(user?.role === 'admin' || user?.permissions?.editLeads) && (
+            <button 
+              onClick={() => setIsEditModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 rounded-lg text-[13px] font-semibold shadow-2xs transition-all"
+            >
+              <PencilSquareIcon className="w-4 h-4 text-slate-400" />
+              Edit
+            </button>
+          )}
 
-          <button 
-            onClick={handleDeleteClient}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 rounded-lg text-[13px] font-semibold transition-all"
-            title="Delete Lead"
-          >
-            <TrashIcon className="w-4 h-4 text-rose-500" />
-          </button>
+          {(user?.role === 'admin' || user?.permissions?.deleteLeads) && (
+            <button 
+              onClick={handleDeleteClient}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 rounded-lg text-[13px] font-semibold transition-all"
+              title="Delete Lead"
+            >
+              <TrashIcon className="w-4 h-4 text-rose-500" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -799,11 +833,29 @@ export default function ClientProfile() {
                   {client.stage.replace('_', ' ')}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-[13px] font-medium text-slate-600">Assigned To</span>
-                <span className="text-[13px] font-bold text-slate-900">
-                  {client.assignedTo?.name || 'Unassigned'}
-                </span>
+                {user?.role === 'admin' || user?.permissions?.editLeads ? (
+                  <div className="relative">
+                    <select
+                      value={client.assignedTo?._id || client.assignedTo || ''}
+                      onChange={(e) => handleAssignChange(e.target.value)}
+                      disabled={isAssigning}
+                      className="text-[12.5px] font-bold text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      <option value="">Unassigned</option>
+                      {teamMembers.map((m) => (
+                        <option key={m._id} value={m._id}>
+                          {m.name} {m.role === 'admin' ? '(Admin)' : '(Staff)'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <span className="text-[13px] font-bold text-slate-900">
+                    {client.assignedTo?.name || 'Unassigned'}
+                  </span>
+                )}
               </div>
             </div>
 
